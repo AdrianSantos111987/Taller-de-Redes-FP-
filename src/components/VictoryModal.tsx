@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Award,
+  Camera,
   CheckCircle2,
   Clock,
   Medal,
@@ -24,6 +25,126 @@ interface VictoryModalProps {
   onPlayAgain: () => void;
 }
 
+function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): void {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 720;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // Background
+  ctx.fillStyle = '#F8FAFC';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Outer technical border
+  ctx.strokeStyle = '#0284C7';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+
+  ctx.strokeStyle = '#CBD5E1';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+
+  // Header
+  ctx.fillStyle = '#0369A1';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText('TALLER DE REDES FP · ARMARIO RACK 19" Y CABLEADO LOCAL', 72, 95);
+
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 46px sans-serif';
+  ctx.fillText(`¡Enhorabuena, ${nick || 'Alumno/a'}!`, 72, 160);
+
+  ctx.fillStyle = '#475569';
+  ctx.font = '22px sans-serif';
+  ctx.fillText(
+    'Comprobante de práctica completada para entrega de clase',
+    72,
+    200
+  );
+
+  // Score hero box
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(72, 235, 440, 175);
+  ctx.fillStyle = '#94A3B8';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('PUNTUACIÓN TOTAL (3 FASES)', 100, 275);
+  ctx.fillStyle = '#FCD34D';
+  ctx.font = 'bold 64px monospace';
+  ctx.fillText(`${scoreSummary.totalScore} pts`, 100, 348);
+  ctx.fillStyle = '#CBD5E1';
+  ctx.font = '18px sans-serif';
+  ctx.fillText(
+    `Aciertos: ${scoreSummary.totalAccuracyPoints} pts · Bonus tiempo: +${scoreSummary.totalTimeBonusPoints} pts`,
+    100,
+    386
+  );
+
+  // Rank box
+  ctx.fillStyle = '#EFF6FF';
+  ctx.fillRect(540, 235, 588, 175);
+  ctx.strokeStyle = '#93C5FD';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(540, 235, 588, 175);
+  ctx.fillStyle = '#0369A1';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('RANGO OBTENIDO', 568, 275);
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillText(scoreSummary.rank.title, 568, 325);
+  ctx.fillStyle = '#334155';
+  ctx.font = '18px sans-serif';
+  ctx.fillText(
+    `Fecha: ${new Date().toLocaleDateString('es-ES')} · Prof. Adrián Santos`,
+    568,
+    380
+  );
+
+  // 3 phase summary cards
+  const cardW = 336;
+  scoreSummary.phases.forEach((p, idx) => {
+    const x = 72 + idx * (cardW + 24);
+    const y = 445;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(x, y, cardW, 195);
+    ctx.strokeStyle = p.completed ? '#10B981' : '#CBD5E1';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, cardW, 195);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = 'bold 21px sans-serif';
+    ctx.fillText(p.title, x + 20, y + 42);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '18px sans-serif';
+    ctx.fillText(
+      `Estado: ${p.completed ? 'Superada ✓' : 'Pendiente'}`,
+      x + 20,
+      y + 82
+    );
+    ctx.fillText(
+      `Tiempo: ${p.timeUsedSeconds !== null ? formatSecondsMMSS(p.timeUsedSeconds) : '--:--'}`,
+      x + 20,
+      y + 114
+    );
+    ctx.fillText(
+      `Aciertos: ${p.accuracyPoints} · Tiempo: +${p.timeBonusPoints}`,
+      x + 20,
+      y + 146
+    );
+    ctx.fillStyle = '#0369A1';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText(`Total: ${p.totalPoints} pts`, x + 20, y + 180);
+  });
+
+  const safeName = (nick || 'alumno')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '_');
+  const link = document.createElement('a');
+  link.download = `entrega_rack19_${safeName}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
 export const VictoryModal: React.FC<VictoryModalProps> = ({
   isOpen,
   nick,
@@ -32,7 +153,13 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   onClose,
   onPlayAgain,
 }) => {
+  const [downloadedNotice, setDownloadedNotice] = useState(false);
+
   if (!isOpen) return null;
+
+  const completedPhasesCount = scoreSummary.phases.filter(
+    (p) => p.completed
+  ).length;
 
   const totalTimeUsed = scoreSummary.phases.reduce(
     (sum, p) => sum + (p.timeUsedSeconds ?? 0),
@@ -73,7 +200,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             </div>
             <div>
               <p className="text-xs font-mono font-semibold text-emerald-700">
-                PRÁCTICA COMPLETADA · 3/3 FASES
+                RESUMEN DE PRÁCTICA · {completedPhasesCount}/3 FASES COMPLETADAS
               </p>
               <h2
                 id="victory-modal-title"
@@ -82,7 +209,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                 ¡Enhorabuena, {nick || 'Técnico/a'}!
               </h2>
               <p className="text-sm text-slate-600 mt-0.5">
-                Has montado el armario rack 19&quot; y dejado los 4 ordenadores del aula conectados a Internet.
+                {completedPhasesCount === 3
+                  ? 'Has montado el armario rack 19" y completado las 4 conexiones de red del aula.'
+                  : 'Has completado el cableado de la Fase 3. Aquí tienes tu resumen de puntuación actual.'}
               </p>
             </div>
           </div>
@@ -101,7 +230,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3">
           <div className="sm:col-span-5 bg-slate-900 text-white rounded-xl p-4 flex flex-col justify-between">
             <div className="text-xs font-mono text-slate-300">
-              PUNTUACIÓN FINAL
+              PUNTUACIÓN TOTAL (3 FASES)
             </div>
             <div
               className="text-4xl font-bold font-mono text-amber-300 my-1"
@@ -117,7 +246,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="font-sans">Bonus tiempo:</span>
-                <span className="text-emerald-300">+{scoreSummary.totalTimeBonusPoints} pts</span>
+                <span className="text-emerald-300">
+                  +{scoreSummary.totalTimeBonusPoints} pts
+                </span>
               </div>
             </div>
           </div>
@@ -131,7 +262,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             />
             <div>
               <div className="text-xs font-mono font-semibold opacity-80">
-                RANGO OBTENIDO · TIEMPO TOTAL {formatSecondsMMSS(totalTimeUsed)}
+                RANGO OBTENIDO · TIEMPO {formatSecondsMMSS(totalTimeUsed)}
               </div>
               <h3 className="text-base font-bold mt-0.5">
                 {scoreSummary.rank.title}
@@ -146,7 +277,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         {/* Per-phase Breakdown */}
         <div className="mt-4">
           <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Resumen por fases
+            Puntuación por fases
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {scoreSummary.phases.map((phase) => (
@@ -156,10 +287,12 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               >
                 <div className="flex items-center justify-between gap-1 font-bold text-slate-900">
                   <span>{phase.title}</span>
-                  <CheckCircle2
-                    className="w-3.5 h-3.5 text-emerald-600 shrink-0"
-                    aria-hidden="true"
-                  />
+                  {phase.completed && (
+                    <CheckCircle2
+                      className="w-3.5 h-3.5 text-emerald-600 shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
                 </div>
                 <div className="mt-2 space-y-1 text-slate-600 font-mono">
                   <div className="flex justify-between">
@@ -170,7 +303,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                     <strong className="text-slate-900">
                       {phase.timeUsedSeconds !== null
                         ? formatSecondsMMSS(phase.timeUsedSeconds)
-                        : '--:--'}
+                        : 'En curso'}
                     </strong>
                   </div>
                   <div className="flex justify-between">
@@ -226,25 +359,49 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           </div>
         )}
 
-        {/* Footer Buttons */}
-        <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+        {downloadedNotice && (
+          <p
+            role="status"
+            className="mt-3 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2"
+          >
+            ¡Captura de entrega descargada! Ya puedes subir la imagen a tu aula virtual o hacer captura directa de esta ventana.
+          </p>
+        )}
+
+        {/* Footer Buttons: Capture for class + Continue + Restart */}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-2.5">
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+            onClick={() => {
+              downloadCertificatePng(nick, scoreSummary);
+              setDownloadedNotice(true);
+            }}
+            data-testid="victory-capture-btn"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-sky-700" aria-hidden="true" />
-            <span>Seguir explorando</span>
+            <Camera className="w-4 h-4" aria-hidden="true" />
+            <span>Guardar captura de entrega</span>
           </button>
-          <button
-            type="button"
-            onClick={onPlayAgain}
-            data-testid="victory-play-again-btn"
-            className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4" aria-hidden="true" />
-            <span>Jugar de nuevo</span>
-          </button>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-sky-700" aria-hidden="true" />
+              <span>Seguir viendo</span>
+            </button>
+            <button
+              type="button"
+              onClick={onPlayAgain}
+              data-testid="victory-play-again-btn"
+              className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+              <span>Reiniciar práctica</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

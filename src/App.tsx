@@ -13,12 +13,8 @@ import {
   validateRackAssembly,
 } from './logic/rackValidation';
 import {
-  addCableConnection,
   CableConnection,
-  CableType,
-  ConnectivityResult,
-  removeCableConnection,
-  validateConnectivity,
+  TOTAL_EXPECTED_CABLES,
 } from './logic/networkValidation';
 import {
   calculatePhase1Score,
@@ -44,22 +40,6 @@ import { GuidedTutorialOverlay } from './components/GuidedTutorialOverlay';
 
 const TUTORIAL_STORAGE_KEY = 'rack19_seen_tutorials_v1';
 const LEADERBOARD_STORAGE_KEY = 'rack19_leaderboard_v1';
-
-const SAMPLE_COMPLETE_CABLES: CableConnection[] = [
-  { id: 'power-sai-out-1-pdu-in', type: 'power', fromPortId: 'sai-out-1', toPortId: 'pdu-in' },
-  { id: 'power-pdu-out-1-router-pwr', type: 'power', fromPortId: 'pdu-out-1', toPortId: 'router-pwr' },
-  { id: 'power-pdu-out-2-switch-pwr', type: 'power', fromPortId: 'pdu-out-2', toPortId: 'switch-pwr' },
-  { id: 'fiber-internet-fiber-router-wan', type: 'fiber', fromPortId: 'internet-fiber', toPortId: 'router-wan' },
-  { id: 'ethernet-router-lan-switch-p1', type: 'ethernet', fromPortId: 'router-lan', toPortId: 'switch-p1' },
-  { id: 'ethernet-switch-p2-pp-1', type: 'ethernet', fromPortId: 'switch-p2', toPortId: 'pp-1' },
-  { id: 'ethernet-switch-p3-pp-2', type: 'ethernet', fromPortId: 'switch-p3', toPortId: 'pp-2' },
-  { id: 'ethernet-switch-p4-pp-3', type: 'ethernet', fromPortId: 'switch-p4', toPortId: 'pp-3' },
-  { id: 'ethernet-switch-p5-pp-4', type: 'ethernet', fromPortId: 'switch-p5', toPortId: 'pp-4' },
-  { id: 'ethernet-roseta-1-pc-1', type: 'ethernet', fromPortId: 'roseta-1', toPortId: 'pc-1' },
-  { id: 'ethernet-roseta-2-pc-2', type: 'ethernet', fromPortId: 'roseta-2', toPortId: 'pc-2' },
-  { id: 'ethernet-roseta-3-pc-3', type: 'ethernet', fromPortId: 'roseta-3', toPortId: 'pc-3' },
-  { id: 'ethernet-roseta-4-pc-4', type: 'ethernet', fromPortId: 'roseta-4', toPortId: 'pc-4' },
-];
 
 function loadSeenTutorials(): Record<PhaseId, boolean> {
   try {
@@ -122,9 +102,7 @@ export default function App() {
     ...PHASE_TIME_LIMITS,
   }));
   const [phase2FailedChecks, setPhase2FailedChecks] = useState(0);
-  const [phase3FailedPings, setPhase3FailedPings] = useState(0);
-  const [phase3ChallengeExplored, setPhase3ChallengeExplored] = useState(false);
-  const [phase3UsedSample, setPhase3UsedSample] = useState(false);
+  const [phase3FailedAttempts, setPhase3FailedAttempts] = useState(0);
   const [victoryModalOpen, setVictoryModalOpen] = useState(false);
   const [victoryRecordedForRun, setVictoryRecordedForRun] = useState(false);
   const [leaderboard, setLeaderboard] =
@@ -150,10 +128,9 @@ export default function App() {
     useState<RackValidationSummary | null>(null);
   const [phase2Completed, setPhase2Completed] = useState(false);
 
-  // Phase 3 state
+  // Phase 3 state (4-step guided connections)
   const [cables, setCables] = useState<CableConnection[]>([]);
-  const [pingResult, setPingResult] = useState<ConnectivityResult | null>(null);
-  const [phase3Completed, setPhase3Completed] = useState(false);
+  const phase3Completed = cables.length >= TOTAL_EXPECTED_CABLES;
 
   const phase1Completed = exploredIds.length >= EDUCATIONAL_COMPONENTS.length;
   const allPhasesCompleted =
@@ -176,12 +153,10 @@ export default function App() {
     });
     const p3 = calculatePhase3Score({
       cableCount: cables.length,
-      expectedCables: 13,
+      expectedCables: TOTAL_EXPECTED_CABLES,
       completed: phase3Completed,
-      failedPings: phase3FailedPings,
+      failedAttempts: phase3FailedAttempts,
       remainingSeconds: phaseTimers[3],
-      challengeExplored: phase3ChallengeExplored,
-      usedSampleAssist: phase3UsedSample,
     });
     return computeTotalGameScore(p1, p2, p3);
   }, [
@@ -192,9 +167,7 @@ export default function App() {
     phase2FailedChecks,
     cables.length,
     phase3Completed,
-    phase3FailedPings,
-    phase3ChallengeExplored,
-    phase3UsedSample,
+    phase3FailedAttempts,
     phaseTimers,
   ]);
 
@@ -251,7 +224,7 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [activePhase, isTimerPaused]);
 
-  // Automatically congratulate and show final score when all 3 phases finish
+  // Automatically congratulate and show final summary when Phase 3 completes (or all 3 phases complete)
   useEffect(() => {
     if (allPhasesCompleted && !victoryRecordedForRun) {
       setVictoryRecordedForRun(true);
@@ -359,49 +332,11 @@ export default function App() {
     }
   };
 
-  const handleAddCable = (
-    type: CableType,
-    fromPortId: string,
-    toPortId: string
-  ): string | undefined => {
-    const res = addCableConnection(cables, type, fromPortId, toPortId);
-    if (res.error) return res.error;
-    setCables(res.cables);
-    setPingResult(null);
-    return undefined;
-  };
-
-  const handleRemoveCable = (cableId: string) => {
-    setCables((prev) => removeCableConnection(prev, cableId));
-    setPingResult(null);
-    setPhase3Completed(false);
-  };
-
-  const handleClearCables = () => {
-    setCables([]);
-    setPingResult(null);
-    setPhase3Completed(false);
-    setPhase3UsedSample(false);
-  };
-
-  const handleLoadSampleForChallenge = () => {
-    setPhase3UsedSample(true);
-    setCables(SAMPLE_COMPLETE_CABLES);
-    const diag = validateConnectivity(SAMPLE_COMPLETE_CABLES);
-    setPingResult(diag);
-    if (diag.allConnected) {
-      setPhase3Completed(true);
-    }
-  };
-
-  const handleRunPing = () => {
-    const diag = validateConnectivity(cables);
-    setPingResult(diag);
-    if (diag.allConnected) {
-      setPhase3Completed(true);
-    } else {
-      setPhase3Completed(false);
-      setPhase3FailedPings((c) => c + 1);
+  const handleStepSuccess = (nextCables: CableConnection[]) => {
+    setCables(nextCables);
+    if (nextCables.length >= TOTAL_EXPECTED_CABLES) {
+      // Open final summary automatically when completing Phase 3
+      setVictoryModalOpen(true);
     }
   };
 
@@ -422,13 +357,9 @@ export default function App() {
     setRackValidation(null);
     setPhase2Completed(false);
     setCables([]);
-    setPingResult(null);
-    setPhase3Completed(false);
     setPhaseTimers({ ...PHASE_TIME_LIMITS });
     setPhase2FailedChecks(0);
-    setPhase3FailedPings(0);
-    setPhase3ChallengeExplored(false);
-    setPhase3UsedSample(false);
+    setPhase3FailedAttempts(0);
     setVictoryModalOpen(false);
     setVictoryRecordedForRun(false);
     setHelpOpen(false);
@@ -440,7 +371,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      <div className="sticky top-0 z-30">
+      <div className="sticky top-0 z-40">
         <HeaderBar
           activePhase={activePhase}
           onSelectPhase={handlePhaseChange}
@@ -469,7 +400,7 @@ export default function App() {
           remainingSeconds={phaseTimers[activePhase]}
           isTimerPaused={isTimerPaused}
           scoreSummary={scoreSummary}
-          allPhasesCompleted={allPhasesCompleted}
+          allPhasesCompleted={allPhasesCompleted || phase3Completed}
           onEditNick={() => {
             setTutorialOpen(false);
             setHelpOpen(false);
@@ -506,13 +437,11 @@ export default function App() {
             placedRackItems={placedRackItems}
             rackValidated={phase2Completed}
             cables={cables}
-            pingResult={pingResult}
-            onAddCable={handleAddCable}
-            onRemoveCable={handleRemoveCable}
-            onClearCables={handleClearCables}
-            onLoadSampleForChallenge={handleLoadSampleForChallenge}
-            onRunPing={handleRunPing}
-            onChallengeExplored={() => setPhase3ChallengeExplored(true)}
+            phase3Completed={phase3Completed}
+            onStepSuccess={handleStepSuccess}
+            onStepMistake={() => setPhase3FailedAttempts((c) => c + 1)}
+            onClearCables={() => setCables([])}
+            onOpenVictory={() => setVictoryModalOpen(true)}
           />
         )}
       </main>

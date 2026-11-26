@@ -137,10 +137,8 @@ export function calculatePhase3Score(params: {
   cableCount: number;
   expectedCables: number;
   completed: boolean;
-  failedPings: number;
+  failedAttempts: number;
   remainingSeconds: number;
-  challengeExplored: boolean;
-  usedSampleAssist: boolean;
 }): PhaseScoreDetail {
   const limit = PHASE_TIME_LIMITS[3];
   const clampedCables = Math.max(
@@ -148,31 +146,12 @@ export function calculatePhase3Score(params: {
     Math.min(params.cableCount, params.expectedCables)
   );
 
-  if (params.usedSampleAssist) {
-    const assistPoints = params.completed ? 150 : 50;
-    const challengePoints = params.challengeExplored ? 100 : 0;
-    return {
-      phase: 3,
-      title: 'Fase 3 · Cableado y Red',
-      accuracyPoints: assistPoints + challengePoints,
-      timeBonusPoints: 0,
-      totalPoints: assistPoints + challengePoints,
-      timeUsedSeconds: params.completed
-        ? Math.max(0, limit - Math.floor(params.remainingSeconds))
-        : null,
-      timeLimitSeconds: limit,
-      completed: params.completed,
-    };
-  }
-
-  const cablePoints = clampedCables * 30;
+  const cablePoints = clampedCables * 100;
   const completionPoints = params.completed ? 250 : 0;
   const precisionBonus = params.completed
-    ? Math.max(0, 150 - Math.max(0, params.failedPings) * 25)
+    ? Math.max(0, 150 - Math.max(0, params.failedAttempts) * 20)
     : 0;
-  const challengePoints = params.challengeExplored ? 100 : 0;
-  const accuracyPoints =
-    cablePoints + completionPoints + precisionBonus + challengePoints;
+  const accuracyPoints = cablePoints + completionPoints + precisionBonus;
   const timeBonusPoints = params.completed
     ? Math.max(0, Math.floor(params.remainingSeconds)) * 3
     : 0;

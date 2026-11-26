@@ -30,13 +30,12 @@ const HINTS_BY_PHASE: Record<
     ],
   },
   3: {
-    title: 'Pistas para la Fase 3 · Cableado y Test Ping',
+    title: 'Pistas para la Fase 3 · 4 pasos guiados',
     steps: [
-      '1. Alimentación (Negro/Rojo): Conecta "Salida SAI 1" → "Entrada PDU", y luego "Toma 1" → "230V Router" y "Toma 2" → "230V Switch".',
-      '2. Fibra Óptica / WAN (Amarillo): Conecta "Fibra Operadora" (Internet) → puerto "WAN" del Router.',
-      '3. Ethernet UTP (Azul): Conecta "LAN 1" del Router → "P1 (Uplink)" del Switch.',
-      '4. Ethernet UTP (Azul): Conecta los puertos "P2, P3, P4, P5" del Switch → "PP 1, PP 2, PP 3, PP 4" del Patch Panel.',
-      '5. Ethernet UTP (Azul): Conecta cada "Roseta 1..4" de pared → "RJ45 PC 1..4" y pulsa "Test de Conectividad (Ping)".',
+      'Paso 1 (Cable Negro - 230V): Selecciona abajo el cable negro y une "Salida 230V" (SAI) con "Entrada 230V" (Router).',
+      'Paso 2 (Cable Azul - RJ45): Cambia al cable azul abajo y une "Toma Internet" con "Puerto WAN" (Router).',
+      'Paso 3 (Cable Azul - RJ45): Con el cable azul, une "Puerto LAN" (Router) con "Puerto Uplink" (Switch).',
+      'Paso 4 (Cable Azul - RJ45): Con el cable azul, une "Puerto Aula" (Switch) con "Puerto Patch Panel" para terminar.',
     ],
   },
 };

@@ -8,7 +8,7 @@ import {
 test('all 3 phases define guided tutorial steps with targets and solution guidance', () => {
   assert.ok(TUTORIAL_STEPS_BY_PHASE[1].length >= 3);
   assert.ok(TUTORIAL_STEPS_BY_PHASE[2].length >= 5);
-  assert.ok(TUTORIAL_STEPS_BY_PHASE[3].length >= 6);
+  assert.ok(TUTORIAL_STEPS_BY_PHASE[3].length >= 3);
 
   for (const phase of [1, 2, 3] as const) {
     for (const step of TUTORIAL_STEPS_BY_PHASE[phase]) {

@@ -1,28 +1,12 @@
-export type CableType = 'fiber' | 'ethernet' | 'power';
-
-export type PortCategory = 'fiber' | 'ethernet' | 'power_source' | 'power_in';
+export type CableType = 'power' | 'ethernet';
 
 export interface NetworkPort {
   id: string;
   label: string;
-  deviceId:
-    | 'internet'
-    | 'router'
-    | 'switch'
-    | 'patch_panel'
-    | 'pdu'
-    | 'sai'
-    | 'roseta_1'
-    | 'roseta_2'
-    | 'roseta_3'
-    | 'roseta_4'
-    | 'pc_1'
-    | 'pc_2'
-    | 'pc_3'
-    | 'pc_4';
+  sublabel: string;
+  deviceId: 'internet' | 'router' | 'switch' | 'patch_panel' | 'sai';
   deviceLabel: string;
-  category: PortCategory;
-  group: 'wan' | 'rack' | 'classroom';
+  expectedCable: CableType;
 }
 
 export interface CableConnection {
@@ -30,268 +14,132 @@ export interface CableConnection {
   type: CableType;
   fromPortId: string;
   toPortId: string;
+  stepNumber: 1 | 2 | 3 | 4;
 }
 
-export interface DiagnosticIssue {
-  code: string;
-  message: string;
+export interface GuidedWiringStep {
+  stepNumber: 1 | 2 | 3 | 4;
+  title: string;
+  missionText: string;
+  requiredCable: CableType;
+  fromPortId: string;
+  toPortId: string;
+  successMessage: string;
 }
 
-export interface ConnectivityResult {
-  allConnected: boolean;
-  routerPowered: boolean;
-  switchPowered: boolean;
-  pduPowered: boolean;
-  wanConnected: boolean;
-  routerToSwitchConnected: boolean;
-  pcStatuses: {
-    pcIndex: 1 | 2 | 3 | 4;
-    connectedToInternet: boolean;
-    patchConnected: boolean;
-    wallToPcConnected: boolean;
-    missingReason?: string;
-  }[];
-  activeSwitchPorts: string[];
-  issues: DiagnosticIssue[];
-}
+export const TOTAL_EXPECTED_CABLES = 4;
 
 export const NETWORK_PORTS: NetworkPort[] = [
-  // Internet ONT / Street fiber
   {
-    id: 'internet-fiber',
-    label: 'Fibra Operadora',
-    deviceId: 'internet',
-    deviceLabel: 'Internet',
-    category: 'fiber',
-    group: 'wan',
-  },
-
-  // Router ports
-  {
-    id: 'router-wan',
-    label: 'WAN',
-    deviceId: 'router',
-    deviceLabel: 'Router',
-    category: 'fiber',
-    group: 'rack',
-  },
-  {
-    id: 'router-lan',
-    label: 'LAN 1',
-    deviceId: 'router',
-    deviceLabel: 'Router',
-    category: 'ethernet',
-    group: 'rack',
+    id: 'sai-out',
+    label: 'Salida 230V',
+    sublabel: 'Corriente SAI',
+    deviceId: 'sai',
+    deviceLabel: 'SAI (UPS)',
+    expectedCable: 'power',
   },
   {
     id: 'router-pwr',
-    label: '230V',
+    label: 'Entrada 230V',
+    sublabel: 'Alimentación',
     deviceId: 'router',
     deviceLabel: 'Router',
-    category: 'power_in',
-    group: 'rack',
+    expectedCable: 'power',
   },
-
-  // Switch ports (Uplink + 4 LAN ports + Power)
   {
-    id: 'switch-p1',
-    label: 'P1 (Uplink)',
+    id: 'internet-wan',
+    label: 'Toma Internet',
+    sublabel: 'Operadora',
+    deviceId: 'internet',
+    deviceLabel: 'Internet',
+    expectedCable: 'ethernet',
+  },
+  {
+    id: 'router-wan',
+    label: 'Puerto WAN',
+    sublabel: 'Entrada Internet',
+    deviceId: 'router',
+    deviceLabel: 'Router',
+    expectedCable: 'ethernet',
+  },
+  {
+    id: 'router-lan',
+    label: 'Puerto LAN',
+    sublabel: 'Red local',
+    deviceId: 'router',
+    deviceLabel: 'Router',
+    expectedCable: 'ethernet',
+  },
+  {
+    id: 'switch-uplink',
+    label: 'Puerto Uplink',
+    sublabel: 'Entrada Switch',
     deviceId: 'switch',
     deviceLabel: 'Switch',
-    category: 'ethernet',
-    group: 'rack',
+    expectedCable: 'ethernet',
   },
   {
-    id: 'switch-p2',
-    label: 'P2',
+    id: 'switch-aula',
+    label: 'Puerto Aula',
+    sublabel: 'Salida Switch',
     deviceId: 'switch',
     deviceLabel: 'Switch',
-    category: 'ethernet',
-    group: 'rack',
+    expectedCable: 'ethernet',
   },
   {
-    id: 'switch-p3',
-    label: 'P3',
-    deviceId: 'switch',
-    deviceLabel: 'Switch',
-    category: 'ethernet',
-    group: 'rack',
-  },
-  {
-    id: 'switch-p4',
-    label: 'P4',
-    deviceId: 'switch',
-    deviceLabel: 'Switch',
-    category: 'ethernet',
-    group: 'rack',
-  },
-  {
-    id: 'switch-p5',
-    label: 'P5',
-    deviceId: 'switch',
-    deviceLabel: 'Switch',
-    category: 'ethernet',
-    group: 'rack',
-  },
-  {
-    id: 'switch-pwr',
-    label: '230V',
-    deviceId: 'switch',
-    deviceLabel: 'Switch',
-    category: 'power_in',
-    group: 'rack',
-  },
-
-  // Patch Panel ports (mapped internally 1-to-1 to Roseta 1..4)
-  {
-    id: 'pp-1',
-    label: 'PP 1',
+    id: 'patch-panel-aula',
+    label: 'Puerto Patch Panel',
+    sublabel: 'Distribución aula',
     deviceId: 'patch_panel',
     deviceLabel: 'Patch Panel',
-    category: 'ethernet',
-    group: 'rack',
+    expectedCable: 'ethernet',
   },
-  {
-    id: 'pp-2',
-    label: 'PP 2',
-    deviceId: 'patch_panel',
-    deviceLabel: 'Patch Panel',
-    category: 'ethernet',
-    group: 'rack',
-  },
-  {
-    id: 'pp-3',
-    label: 'PP 3',
-    deviceId: 'patch_panel',
-    deviceLabel: 'Patch Panel',
-    category: 'ethernet',
-    group: 'rack',
-  },
-  {
-    id: 'pp-4',
-    label: 'PP 4',
-    deviceId: 'patch_panel',
-    deviceLabel: 'Patch Panel',
-    category: 'ethernet',
-    group: 'rack',
-  },
+];
 
-  // PDU ports
+export const GUIDED_WIRING_STEPS: GuidedWiringStep[] = [
   {
-    id: 'pdu-in',
-    label: 'Entrada PDU',
-    deviceId: 'pdu',
-    deviceLabel: 'Regleta PDU',
-    category: 'power_in',
-    group: 'rack',
+    stepNumber: 1,
+    title: 'Corriente eléctrica',
+    missionText:
+      'Paso 1 de 4: Conecta la alimentación eléctrica al Router desde el SAI.',
+    requiredCable: 'power',
+    fromPortId: 'sai-out',
+    toPortId: 'router-pwr',
+    successMessage:
+      '¡Genial! +100 pts · El Router ya recibe corriente eléctrica protegida del SAI.',
   },
   {
-    id: 'pdu-out-1',
-    label: 'Toma 1',
-    deviceId: 'pdu',
-    deviceLabel: 'Regleta PDU',
-    category: 'power_source',
-    group: 'rack',
+    stepNumber: 2,
+    title: 'Internet → WAN',
+    missionText:
+      'Paso 2 de 4: Conecta la Toma de Internet al puerto WAN del Router.',
+    requiredCable: 'ethernet',
+    fromPortId: 'internet-wan',
+    toPortId: 'router-wan',
+    successMessage:
+      '¡Muy bien! +100 pts · La señal de Internet ya entra en el puerto WAN del Router.',
   },
   {
-    id: 'pdu-out-2',
-    label: 'Toma 2',
-    deviceId: 'pdu',
-    deviceLabel: 'Regleta PDU',
-    category: 'power_source',
-    group: 'rack',
+    stepNumber: 3,
+    title: 'Router LAN → Switch',
+    missionText:
+      'Paso 3 de 4: Conecta el puerto LAN del Router con el puerto Uplink del Switch.',
+    requiredCable: 'ethernet',
+    fromPortId: 'router-lan',
+    toPortId: 'switch-uplink',
+    successMessage:
+      '¡Perfecto! +100 pts · La red local ya conecta el Router con el Switch.',
   },
   {
-    id: 'pdu-out-3',
-    label: 'Toma 3',
-    deviceId: 'pdu',
-    deviceLabel: 'Regleta PDU',
-    category: 'power_source',
-    group: 'rack',
-  },
-
-  // SAI ports
-  {
-    id: 'sai-out-1',
-    label: 'Salida SAI 1',
-    deviceId: 'sai',
-    deviceLabel: 'SAI (UPS)',
-    category: 'power_source',
-    group: 'rack',
-  },
-  {
-    id: 'sai-out-2',
-    label: 'Salida SAI 2',
-    deviceId: 'sai',
-    deviceLabel: 'SAI (UPS)',
-    category: 'power_source',
-    group: 'rack',
-  },
-
-  // Classroom wall sockets (Rosetas) and PCs
-  {
-    id: 'roseta-1',
-    label: 'Roseta 1',
-    deviceId: 'roseta_1',
-    deviceLabel: 'Roseta Pared 1',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'roseta-2',
-    label: 'Roseta 2',
-    deviceId: 'roseta_2',
-    deviceLabel: 'Roseta Pared 2',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'roseta-3',
-    label: 'Roseta 3',
-    deviceId: 'roseta_3',
-    deviceLabel: 'Roseta Pared 3',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'roseta-4',
-    label: 'Roseta 4',
-    deviceId: 'roseta_4',
-    deviceLabel: 'Roseta Pared 4',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'pc-1',
-    label: 'RJ45 PC 1',
-    deviceId: 'pc_1',
-    deviceLabel: 'PC 1',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'pc-2',
-    label: 'RJ45 PC 2',
-    deviceId: 'pc_2',
-    deviceLabel: 'PC 2',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'pc-3',
-    label: 'RJ45 PC 3',
-    deviceId: 'pc_3',
-    deviceLabel: 'PC 3',
-    category: 'ethernet',
-    group: 'classroom',
-  },
-  {
-    id: 'pc-4',
-    label: 'RJ45 PC 4',
-    deviceId: 'pc_4',
-    deviceLabel: 'PC 4',
-    category: 'ethernet',
-    group: 'classroom',
+    stepNumber: 4,
+    title: 'Switch → Patch Panel',
+    missionText:
+      'Paso 4 de 4: Conecta el puerto del Switch con el Patch Panel para repartir la red al aula.',
+    requiredCable: 'ethernet',
+    fromPortId: 'switch-aula',
+    toPortId: 'patch-panel-aula',
+    successMessage:
+      '¡Misión completada! +100 pts · Toda la red del armario rack está conectada al aula.',
   },
 ];
 
@@ -299,13 +147,14 @@ export function getPortById(portId: string): NetworkPort | undefined {
   return NETWORK_PORTS.find((p) => p.id === portId);
 }
 
-export function isPortCompatibleWithCable(
-  port: NetworkPort,
-  cableType: CableType
-): boolean {
-  if (cableType === 'fiber') return port.category === 'fiber';
-  if (cableType === 'ethernet') return port.category === 'ethernet';
-  return port.category === 'power_in' || port.category === 'power_source';
+export function getCurrentWiringStep(
+  cables: CableConnection[]
+): GuidedWiringStep | null {
+  const completedSteps = new Set(cables.map((c) => c.stepNumber));
+  return (
+    GUIDED_WIRING_STEPS.find((step) => !completedSteps.has(step.stepNumber)) ??
+    null
+  );
 }
 
 export function isPortOccupied(
@@ -317,316 +166,136 @@ export function isPortOccupied(
   );
 }
 
-export function canConnectPorts(
-  cables: CableConnection[],
-  cableType: CableType,
-  fromPortId: string,
-  toPortId: string
-): { ok: boolean; reason?: string } {
-  if (fromPortId === toPortId) {
-    return { ok: false, reason: 'No puedes conectar un puerto consigo mismo.' };
-  }
-
-  const fromPort = getPortById(fromPortId);
-  const toPort = getPortById(toPortId);
-  if (!fromPort || !toPort) {
+export function validateStepPortSelection(params: {
+  step: GuidedWiringStep;
+  selectedCable: CableType | null;
+  portId: string;
+  cables: CableConnection[];
+}): { ok: boolean; reason?: string } {
+  const { step, selectedCable, portId, cables } = params;
+  const port = getPortById(portId);
+  if (!port) {
     return { ok: false, reason: 'Puerto no reconocido.' };
   }
 
-  if (
-    !isPortCompatibleWithCable(fromPort, cableType) ||
-    !isPortCompatibleWithCable(toPort, cableType)
-  ) {
-    const cableNames: Record<CableType, string> = {
-      fiber: 'Fibra Óptica / WAN (Amarillo)',
-      ethernet: 'Ethernet UTP RJ45 (Azul)',
-      power: 'Alimentación Eléctrica (Negro/Rojo)',
-    };
+  if (!selectedCable) {
     return {
       ok: false,
-      reason: `El cable ${cableNames[cableType]} no encaja en esos puertos. Cambia el tipo de cable o elige puertos compatibles.`,
+      reason:
+        step.requiredCable === 'power'
+          ? 'Primero selecciona abajo el Cable de Alimentación (Negro - 230V).'
+          : 'Primero selecciona abajo el Cable de Red UTP RJ45 (Azul - Datos).',
     };
   }
 
-  if (fromPort.deviceId === toPort.deviceId) {
+  if (selectedCable === 'power' && port.expectedCable === 'ethernet') {
     return {
       ok: false,
-      reason: `Conecta ${fromPort.deviceLabel} con otro equipo distinto, no consigo mismo.`,
+      reason:
+        '¡Cuidado! No puedes meter corriente eléctrica en un puerto de red RJ45. Elige abajo el Cable de Red UTP RJ45 (Azul - Datos).',
     };
   }
 
-  if (isPortOccupied(cables, fromPortId)) {
+  if (selectedCable === 'ethernet' && port.expectedCable === 'power') {
     return {
       ok: false,
-      reason: `El puerto ${fromPort.label} de ${fromPort.deviceLabel} ya tiene un cable conectado.`,
+      reason:
+        '¡Cuidado! Ese es un puerto eléctrico de 230V y llevas un cable de datos RJ45. Elige abajo el Cable de Alimentación (Negro - 230V).',
     };
   }
 
-  if (isPortOccupied(cables, toPortId)) {
+  if (selectedCable !== step.requiredCable) {
     return {
       ok: false,
-      reason: `El puerto ${toPort.label} de ${toPort.deviceLabel} ya tiene un cable conectado.`,
+      reason:
+        step.requiredCable === 'power'
+          ? 'En este paso necesitas corriente eléctrica: selecciona el Cable de Alimentación (Negro - 230V).'
+          : 'En este paso necesitas transmitir datos: selecciona el Cable de Red UTP RJ45 (Azul - Datos).',
     };
   }
 
-  if (cableType === 'power') {
-    const categories = new Set([fromPort.category, toPort.category]);
-    if (
-      !categories.has('power_source') ||
-      !categories.has('power_in')
-    ) {
-      return {
-        ok: false,
-        reason:
-          'Un cable de corriente debe unir una salida eléctrica (SAI o toma PDU) con la entrada eléctrica de un equipo.',
-      };
-    }
+  if (isPortOccupied(cables, portId)) {
+    return {
+      ok: false,
+      reason: `El puerto "${port.label}" de ${port.deviceLabel} ya está conectado. Haz clic en los puertos que parpadean.`,
+    };
   }
 
-  // Enforce clean domain logic for Ethernet pairs so students don't accidentally bypass structured cabling
-  if (cableType === 'ethernet') {
-    const devices = [fromPort.deviceId, toPort.deviceId];
-    const hasInternetOrPower = devices.includes('internet');
-    if (hasInternetOrPower) {
-      return {
-        ok: false,
-        reason: 'Internet entra al Router por Fibra Óptica / WAN, no por Ethernet.',
-      };
-    }
-    // Rosetas must connect to PCs (or vice versa), not directly to Router
-    const hasPc = devices.some((d) => d.startsWith('pc_'));
-    const hasRoseta = devices.some((d) => d.startsWith('roseta_'));
-    if (hasPc && !hasRoseta) {
-      return {
-        ok: false,
-        reason:
-          'En un aula cableada, conecta cada PC a su roseta de pared RJ45 (no directo al armario).',
-      };
-    }
-    if (hasRoseta && !hasPc) {
-      return {
-        ok: false,
-        reason:
-          'La roseta de pared ya llega por detrás al Patch Panel; conéctala al PC del puesto.',
-      };
-    }
-    if (devices.includes('router') && devices.includes('patch_panel')) {
-      return {
-        ok: false,
-        reason:
-          'Conecta primero la LAN del Router al Switch, y del Switch al Patch Panel.',
-      };
-    }
+  if (portId !== step.fromPortId && portId !== step.toPortId) {
+    const expectedFrom = getPortById(step.fromPortId);
+    const expectedTo = getPortById(step.toPortId);
+    return {
+      ok: false,
+      reason: `¡Casi! En este paso toca conectar "${expectedFrom?.label}" (${expectedFrom?.deviceLabel}) con "${expectedTo?.label}" (${expectedTo?.deviceLabel}).`,
+    };
   }
 
   return { ok: true };
 }
 
-export function addCableConnection(
-  cables: CableConnection[],
-  cableType: CableType,
-  fromPortId: string,
-  toPortId: string
-): { cables: CableConnection[]; error?: string } {
-  const check = canConnectPorts(cables, cableType, fromPortId, toPortId);
-  if (!check.ok) {
-    return { cables, error: check.reason };
+export function attemptStepConnection(params: {
+  cables: CableConnection[];
+  selectedCable: CableType | null;
+  fromPortId: string;
+  toPortId: string;
+}): {
+  cables: CableConnection[];
+  completedStep?: GuidedWiringStep;
+  error?: string;
+} {
+  const step = getCurrentWiringStep(params.cables);
+  if (!step) {
+    return {
+      cables: params.cables,
+      error: 'Ya has completado las 4 conexiones de la Fase 3.',
+    };
+  }
+
+  if (params.fromPortId === params.toPortId) {
+    return {
+      cables: params.cables,
+      error: 'Has pulsado el mismo puerto dos veces. Haz clic en el otro puerto que parpadea.',
+    };
+  }
+
+  const checkFrom = validateStepPortSelection({
+    step,
+    selectedCable: params.selectedCable,
+    portId: params.fromPortId,
+    cables: params.cables,
+  });
+  if (!checkFrom.ok) {
+    return { cables: params.cables, error: checkFrom.reason };
+  }
+
+  const checkTo = validateStepPortSelection({
+    step,
+    selectedCable: params.selectedCable,
+    portId: params.toPortId,
+    cables: params.cables,
+  });
+  if (!checkTo.ok) {
+    return { cables: params.cables, error: checkTo.reason };
+  }
+
+  const pair = new Set([params.fromPortId, params.toPortId]);
+  if (!pair.has(step.fromPortId) || !pair.has(step.toPortId)) {
+    return {
+      cables: params.cables,
+      error: 'Elige los dos puertos resaltados para completar este paso.',
+    };
   }
 
   const newCable: CableConnection = {
-    id: `${cableType}-${fromPortId}-${toPortId}`,
-    type: cableType,
-    fromPortId,
-    toPortId,
+    id: `step-${step.stepNumber}-${step.fromPortId}-${step.toPortId}`,
+    type: step.requiredCable,
+    fromPortId: step.fromPortId,
+    toPortId: step.toPortId,
+    stepNumber: step.stepNumber,
   };
-  return { cables: [...cables, newCable] };
-}
-
-export function removeCableConnection(
-  cables: CableConnection[],
-  cableId: string
-): CableConnection[] {
-  return cables.filter((c) => c.id !== cableId);
-}
-
-function getNeighbors(
-  cables: CableConnection[],
-  portId: string,
-  typeFilter?: CableType
-): string[] {
-  const result: string[] = [];
-  for (const c of cables) {
-    if (typeFilter && c.type !== typeFilter) continue;
-    if (c.fromPortId === portId) result.push(c.toPortId);
-    else if (c.toPortId === portId) result.push(c.fromPortId);
-  }
-  return result;
-}
-
-export function validateConnectivity(
-  cables: CableConnection[]
-): ConnectivityResult {
-  const issues: DiagnosticIssue[] = [];
-
-  // 1. Check Power path:
-  // SAI outputs feed PDU input (or directly Router/Switch if connected to SAI, though best practice is SAI -> PDU -> Router/Switch)
-  const pduInNeighbors = getNeighbors(cables, 'pdu-in', 'power');
-  const pduPowered = pduInNeighbors.some((p) => p.startsWith('sai-out'));
-
-  const hasPowerFrom = (portId: string): boolean => {
-    const neighbors = getNeighbors(cables, portId, 'power');
-    return neighbors.some((n) => {
-      if (n.startsWith('sai-out')) return true;
-      if (n.startsWith('pdu-out') && pduPowered) return true;
-      return false;
-    });
-  };
-
-  const routerPowered = hasPowerFrom('router-pwr');
-  const switchPowered = hasPowerFrom('switch-pwr');
-
-  if (!pduPowered) {
-    const routerOnPdu = getNeighbors(cables, 'router-pwr', 'power').some((n) =>
-      n.startsWith('pdu-out')
-    );
-    const switchOnPdu = getNeighbors(cables, 'switch-pwr', 'power').some((n) =>
-      n.startsWith('pdu-out')
-    );
-    if (routerOnPdu || switchOnPdu) {
-      issues.push({
-        code: 'pdu_no_power',
-        message:
-          'La regleta PDU no tiene corriente: conecta el SAI a la entrada de la PDU.',
-      });
-    } else if (!routerPowered || !switchPowered) {
-      issues.push({
-        code: 'sai_to_pdu_missing',
-        message:
-          'Conecta el SAI a la entrada de la Regleta PDU para distribuir corriente protegida.',
-      });
-    }
-  }
-
-  if (!routerPowered) {
-    issues.push({
-      code: 'router_no_power',
-      message: 'El Router no tiene corriente eléctrica.',
-    });
-  }
-
-  if (!switchPowered) {
-    issues.push({
-      code: 'switch_no_power',
-      message: 'El Switch no tiene corriente eléctrica.',
-    });
-  }
-
-  // 2. Check WAN connection: Internet <-> Router WAN (fiber)
-  const wanNeighbors = getNeighbors(cables, 'router-wan', 'fiber');
-  const wanConnected = wanNeighbors.includes('internet-fiber');
-  if (!wanConnected) {
-    issues.push({
-      code: 'wan_missing',
-      message:
-        'Falta conectar Internet al puerto WAN del Router con cable de Fibra Óptica (Amarillo).',
-    });
-  }
-
-  // 3. Check Router LAN <-> Switch (ethernet)
-  const routerLanNeighbors = getNeighbors(cables, 'router-lan', 'ethernet');
-  const routerToSwitchPort = routerLanNeighbors.find((p) =>
-    p.startsWith('switch-p')
-  );
-  const routerToSwitchConnected = Boolean(routerToSwitchPort);
-  if (!routerToSwitchConnected) {
-    issues.push({
-      code: 'router_switch_missing',
-      message: 'Falta unir el puerto LAN del Router con el Switch.',
-    });
-  }
-
-  // 4. Check each PC1..PC4 path:
-  // Switch port <-> Patch Panel PP_i (internal wall link to Roseta_i) <-> PC_i
-  const activeSwitchPorts: string[] = [];
-  if (routerToSwitchPort && switchPowered && routerPowered && wanConnected) {
-    activeSwitchPorts.push(routerToSwitchPort);
-  }
-
-  const pcStatuses = ([1, 2, 3, 4] as const).map((pcIndex) => {
-    const ppPortId = `pp-${pcIndex}`;
-    const rosetaPortId = `roseta-${pcIndex}`;
-    const pcPortId = `pc-${pcIndex}`;
-
-    const ppNeighbors = getNeighbors(cables, ppPortId, 'ethernet');
-    const switchPortForPc = ppNeighbors.find((p) => p.startsWith('switch-p'));
-    const patchConnected = Boolean(switchPortForPc);
-
-    const rosetaNeighbors = getNeighbors(cables, rosetaPortId, 'ethernet');
-    const wallToPcConnected = rosetaNeighbors.includes(pcPortId);
-
-    const connectedToInternet =
-      routerPowered &&
-      switchPowered &&
-      wanConnected &&
-      routerToSwitchConnected &&
-      patchConnected &&
-      wallToPcConnected;
-
-    if (connectedToInternet && switchPortForPc) {
-      activeSwitchPorts.push(switchPortForPc);
-    }
-
-    let missingReason: string | undefined;
-    if (!patchConnected && !wallToPcConnected) {
-      missingReason = `Falta unir el Switch con PP ${pcIndex} y la Roseta ${pcIndex} con el PC ${pcIndex}.`;
-    } else if (!patchConnected) {
-      missingReason = `Falta el latiguillo del Switch al Patch Panel (PP ${pcIndex}) para el PC ${pcIndex}.`;
-    } else if (!wallToPcConnected) {
-      missingReason = `Falta el cable Ethernet de la Roseta ${pcIndex} al PC ${pcIndex}.`;
-    }
-
-    return {
-      pcIndex,
-      connectedToInternet,
-      patchConnected,
-      wallToPcConnected,
-      missingReason,
-    };
-  });
-
-  const missingPatch = pcStatuses.filter((s) => !s.patchConnected);
-  const missingWall = pcStatuses.filter((s) => !s.wallToPcConnected);
-
-  if (missingPatch.length > 0) {
-    issues.push({
-      code: 'patch_missing',
-      message: `Falta conectar el Switch con el Patch Panel en: ${missingPatch.map((s) => `PP ${s.pcIndex}`).join(', ')}.`,
-    });
-  }
-
-  if (missingWall.length > 0) {
-    issues.push({
-      code: 'wall_pc_missing',
-      message: `Falta conectar la roseta de pared al ordenador en: ${missingWall.map((s) => `PC ${s.pcIndex}`).join(', ')}.`,
-    });
-  }
-
-  const allConnected =
-    routerPowered &&
-    switchPowered &&
-    wanConnected &&
-    routerToSwitchConnected &&
-    pcStatuses.every((s) => s.connectedToInternet);
 
   return {
-    allConnected,
-    routerPowered,
-    switchPowered,
-    pduPowered,
-    wanConnected,
-    routerToSwitchConnected,
-    pcStatuses,
-    activeSwitchPorts,
-    issues,
+    cables: [...params.cables, newCable],
+    completedStep: step,
   };
 }

@@ -60,27 +60,23 @@ test('Phase 2 and 3 penalize failed validation checks but never go negative', ()
   assert.ok(cleanP2.accuracyPoints > messyP2.accuracyPoints);
   assert.ok(messyP2.accuracyPoints >= 350);
 
-  const manualP3 = calculatePhase3Score({
-    cableCount: 13,
-    expectedCables: 13,
+  const cleanP3 = calculatePhase3Score({
+    cableCount: 4,
+    expectedCables: 4,
     completed: true,
-    failedPings: 0,
+    failedAttempts: 0,
     remainingSeconds: 200,
-    challengeExplored: true,
-    usedSampleAssist: false,
   });
-  const assistP3 = calculatePhase3Score({
-    cableCount: 13,
-    expectedCables: 13,
+  const messyP3 = calculatePhase3Score({
+    cableCount: 4,
+    expectedCables: 4,
     completed: true,
-    failedPings: 0,
+    failedAttempts: 10,
     remainingSeconds: 200,
-    challengeExplored: true,
-    usedSampleAssist: true,
   });
 
-  assert.ok(manualP3.totalPoints > assistP3.totalPoints);
-  assert.equal(assistP3.timeBonusPoints, 0);
+  assert.ok(cleanP3.totalPoints > messyP3.totalPoints);
+  assert.ok(messyP3.accuracyPoints >= 650);
 });
 
 test('computeTotalGameScore sums all phases and assigns Oro rank for high score', () => {
@@ -98,13 +94,11 @@ test('computeTotalGameScore sums all phases and assigns Oro rank for high score'
     remainingSeconds: 140,
   });
   const p3 = calculatePhase3Score({
-    cableCount: 13,
-    expectedCables: 13,
+    cableCount: 4,
+    expectedCables: 4,
     completed: true,
-    failedPings: 0,
+    failedAttempts: 0,
     remainingSeconds: 220,
-    challengeExplored: true,
-    usedSampleAssist: false,
   });
 
   const summary = computeTotalGameScore(p1, p2, p3);

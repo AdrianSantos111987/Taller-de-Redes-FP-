@@ -59,13 +59,27 @@ export const GuidedTutorialOverlay: React.FC<GuidedTutorialOverlayProps> = ({
     const right = Math.min(vw, r.right + pad);
     const bottom = Math.min(vh, r.bottom + pad);
 
-    setTargetRect({
-      top,
-      left,
-      right,
-      bottom,
-      width: Math.max(0, right - left),
-      height: Math.max(0, bottom - top),
+    const nextWidth = Math.max(0, right - left);
+    const nextHeight = Math.max(0, bottom - top);
+
+    setTargetRect((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.top - top) < 1 &&
+        Math.abs(prev.left - left) < 1 &&
+        Math.abs(prev.width - nextWidth) < 1 &&
+        Math.abs(prev.height - nextHeight) < 1
+      ) {
+        return prev;
+      }
+      return {
+        top,
+        left,
+        right,
+        bottom,
+        width: nextWidth,
+        height: nextHeight,
+      };
     });
   }, [isOpen, step]);
 
@@ -123,7 +137,7 @@ export const GuidedTutorialOverlay: React.FC<GuidedTutorialOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40"
+      className="fixed inset-0 z-50"
       data-testid="guided-tutorial-overlay"
       role="dialog"
       aria-modal="true"

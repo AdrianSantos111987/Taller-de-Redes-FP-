@@ -1,60 +1,84 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  addCableConnection,
+  attemptStepConnection,
   CableConnection,
-  validateConnectivity,
-} from './networkValidation';
+  getCurrentWiringStep,
+  GUIDED_WIRING_STEPS,
+  TOTAL_EXPECTED_CABLES,
+  validateStepPortSelection,
+} from './networkValidation.ts';
 
-test('cannot connect Ethernet cable to fiber WAN port', () => {
-  const res = addCableConnection([], 'ethernet', 'internet-fiber', 'router-wan');
-  assert.notEqual(res.error, undefined);
-  assert.equal(res.cables.length, 0);
+test('cannot connect power cable into an RJ45 port and gives friendly explanation', () => {
+  const step2 = GUIDED_WIRING_STEPS[1];
+  const res = validateStepPortSelection({
+    step: step2,
+    selectedCable: 'power',
+    portId: 'router-wan',
+    cables: [],
+  });
+  assert.equal(res.ok, false);
+  assert.ok(res.reason?.includes('corriente eléctrica'));
 });
 
-test('cannot connect PC directly to Switch bypassing Roseta and Patch Panel', () => {
-  const res = addCableConnection([], 'ethernet', 'switch-p2', 'pc-1');
-  assert.notEqual(res.error, undefined);
-  assert.equal(res.cables.length, 0);
+test('cannot connect ethernet RJ45 cable into 230V power port in step 1', () => {
+  const step1 = GUIDED_WIRING_STEPS[0];
+  const res = validateStepPortSelection({
+    step: step1,
+    selectedCable: 'ethernet',
+    portId: 'sai-out',
+    cables: [],
+  });
+  assert.equal(res.ok, false);
+  assert.ok(res.reason?.includes('Cable de Alimentación'));
 });
 
-test('validateConnectivity detects missing switch power when other cables are present', () => {
+test('completes all 4 guided steps in either port click order', () => {
   let cables: CableConnection[] = [];
-  cables = addCableConnection(cables, 'power', 'sai-out-1', 'pdu-in').cables;
-  cables = addCableConnection(cables, 'power', 'pdu-out-1', 'router-pwr').cables;
-  cables = addCableConnection(cables, 'fiber', 'internet-fiber', 'router-wan').cables;
-  cables = addCableConnection(cables, 'ethernet', 'router-lan', 'switch-p1').cables;
 
-  const diag = validateConnectivity(cables);
-  assert.equal(diag.allConnected, false);
-  assert.equal(diag.switchPowered, false);
-  assert.ok(diag.issues.some((i) => i.code === 'switch_no_power'));
-});
+  // Step 1: SAI -> Router 230V
+  let res = attemptStepConnection({
+    cables,
+    selectedCable: 'power',
+    fromPortId: 'sai-out',
+    toPortId: 'router-pwr',
+  });
+  assert.equal(res.error, undefined);
+  cables = res.cables;
+  assert.equal(getCurrentWiringStep(cables)?.stepNumber, 2);
 
-test('validateConnectivity succeeds and activates all 4 PCs when full network and power are wired', () => {
-  let cables: CableConnection[] = [];
-  // Power
-  cables = addCableConnection(cables, 'power', 'sai-out-1', 'pdu-in').cables;
-  cables = addCableConnection(cables, 'power', 'pdu-out-1', 'router-pwr').cables;
-  cables = addCableConnection(cables, 'power', 'pdu-out-2', 'switch-pwr').cables;
-  // Fiber WAN
-  cables = addCableConnection(cables, 'fiber', 'internet-fiber', 'router-wan').cables;
-  // Router LAN -> Switch
-  cables = addCableConnection(cables, 'ethernet', 'router-lan', 'switch-p1').cables;
-  // Switch -> Patch Panel
-  cables = addCableConnection(cables, 'ethernet', 'switch-p2', 'pp-1').cables;
-  cables = addCableConnection(cables, 'ethernet', 'switch-p3', 'pp-2').cables;
-  cables = addCableConnection(cables, 'ethernet', 'switch-p4', 'pp-3').cables;
-  cables = addCableConnection(cables, 'ethernet', 'switch-p5', 'pp-4').cables;
-  // Rosetas -> PCs
-  cables = addCableConnection(cables, 'ethernet', 'roseta-1', 'pc-1').cables;
-  cables = addCableConnection(cables, 'ethernet', 'roseta-2', 'pc-2').cables;
-  cables = addCableConnection(cables, 'ethernet', 'roseta-3', 'pc-3').cables;
-  cables = addCableConnection(cables, 'ethernet', 'roseta-4', 'pc-4').cables;
+  // Step 2: Router WAN <- Internet (reverse order also works)
+  res = attemptStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'router-wan',
+    toPortId: 'internet-wan',
+  });
+  assert.equal(res.error, undefined);
+  cables = res.cables;
+  assert.equal(getCurrentWiringStep(cables)?.stepNumber, 3);
 
-  const diag = validateConnectivity(cables);
-  assert.equal(diag.allConnected, true);
-  assert.equal(diag.issues.length, 0);
-  assert.equal(diag.activeSwitchPorts.length, 5);
-  assert.ok(diag.pcStatuses.every((pc) => pc.connectedToInternet));
+  // Step 3: Router LAN -> Switch Uplink
+  res = attemptStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'router-lan',
+    toPortId: 'switch-uplink',
+  });
+  assert.equal(res.error, undefined);
+  cables = res.cables;
+  assert.equal(getCurrentWiringStep(cables)?.stepNumber, 4);
+
+  // Step 4: Switch Aula -> Patch Panel
+  res = attemptStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'switch-aula',
+    toPortId: 'patch-panel-aula',
+  });
+  assert.equal(res.error, undefined);
+  cables = res.cables;
+
+  assert.equal(cables.length, TOTAL_EXPECTED_CABLES);
+  assert.equal(getCurrentWiringStep(cables), null);
 });
