@@ -71,3 +71,55 @@ test('validateRackAssembly passes with valid workshop configuration and supports
   assert.equal(afterRemove.length, 5);
   assert.equal(validateRackAssembly(afterRemove).isValid, false);
 });
+
+import {
+  TechnicalPlacedRackItem,
+  validateTechnicalRackAssembly,
+} from './rackValidation';
+import { TECHNICAL_RACK_INVENTORY } from '../data/componentsData';
+
+test('TECHNICAL_RACK_INVENTORY fills exactly 12U', () => {
+  const sumU = TECHNICAL_RACK_INVENTORY.reduce((sum, i) => sum + i.heightU, 0);
+  assert.equal(sumU, 12);
+});
+
+test('validateTechnicalRackAssembly passes when SAI is at U1-U2, PP+SW alternate, and Router is at top', () => {
+  const validTech: TechnicalPlacedRackItem[] = [
+    { id: 'sai', bottomU: 1, heightU: 2 },
+    { id: 'pdu', bottomU: 3, heightU: 1 },
+    { id: 'patch_panel_1', bottomU: 4, heightU: 1 },
+    { id: 'switch_1', bottomU: 5, heightU: 1 },
+    { id: 'patch_panel_2', bottomU: 6, heightU: 1 },
+    { id: 'switch_2', bottomU: 7, heightU: 1 },
+    { id: 'patch_panel_3', bottomU: 8, heightU: 1 },
+    { id: 'switch_3', bottomU: 9, heightU: 1 },
+    { id: 'pasahilos', bottomU: 10, heightU: 1 },
+    { id: 'bandeja', bottomU: 11, heightU: 1 },
+    { id: 'router', bottomU: 12, heightU: 1 },
+  ];
+  const res = validateTechnicalRackAssembly(validTech);
+  assert.equal(res.isValid, true);
+});
+
+test('validateTechnicalRackAssembly fails if switches are grouped without alternating patch panels or router is too low', () => {
+  const badTech: TechnicalPlacedRackItem[] = [
+    { id: 'sai', bottomU: 1, heightU: 2 },
+    { id: 'pdu', bottomU: 3, heightU: 1 },
+    { id: 'router', bottomU: 4, heightU: 1 },
+    { id: 'patch_panel_1', bottomU: 5, heightU: 1 },
+    { id: 'patch_panel_2', bottomU: 6, heightU: 1 },
+    { id: 'patch_panel_3', bottomU: 7, heightU: 1 },
+    { id: 'switch_1', bottomU: 8, heightU: 1 },
+    { id: 'switch_2', bottomU: 9, heightU: 1 },
+    { id: 'switch_3', bottomU: 10, heightU: 1 },
+    { id: 'pasahilos', bottomU: 11, heightU: 1 },
+    { id: 'bandeja', bottomU: 12, heightU: 1 },
+  ];
+  const res = validateTechnicalRackAssembly(badTech);
+  assert.equal(res.isValid, false);
+  assert.equal(res.rules.find((r) => r.id === 'router_top')?.passed, false);
+  assert.equal(
+    res.rules.find((r) => r.id === 'patch_switch_alternated')?.passed,
+    false
+  );
+});

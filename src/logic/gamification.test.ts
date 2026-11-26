@@ -105,3 +105,37 @@ test('computeTotalGameScore sums all phases and assigns Oro rank for high score'
   assert.equal(summary.totalScore, p1.totalPoints + p2.totalPoints + p3.totalPoints);
   assert.equal(summary.rank.tier, 'oro');
 });
+
+import {
+  EDUCATIONAL_COMPONENTS,
+  PHASE1_QUIZ_BY_COMPONENT,
+} from '../data/componentsData.ts';
+
+test('Nivel Tecnico Phase 1 rewards first-try answers more than retried answers', () => {
+  const allFirstTry = calculatePhase1Score({
+    exploredCount: 7,
+    totalComponents: 7,
+    remainingSeconds: 120,
+    completed: true,
+    difficulty: 'tecnico',
+    firstTryCount: 7,
+  });
+  const someRetries = calculatePhase1Score({
+    exploredCount: 7,
+    totalComponents: 7,
+    remainingSeconds: 120,
+    completed: true,
+    difficulty: 'tecnico',
+    firstTryCount: 3,
+  });
+  assert.ok(allFirstTry.accuracyPoints > someRetries.accuracyPoints);
+});
+
+test('PHASE1_QUIZ_BY_COMPONENT has 3 options and exactly 1 correct answer for every component', () => {
+  for (const comp of EDUCATIONAL_COMPONENTS) {
+    const quiz = PHASE1_QUIZ_BY_COMPONENT[comp.id];
+    assert.ok(quiz);
+    assert.equal(quiz.options.length, 3);
+    assert.equal(quiz.options.filter((o) => o.isCorrect).length, 1);
+  }
+});

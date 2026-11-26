@@ -27,17 +27,23 @@ import {
   getPortById,
   GUIDED_WIRING_STEPS,
   isPortOccupied,
+  TechnicalCableConnection,
   TOTAL_EXPECTED_CABLES,
   validateStepPortSelection,
 } from '../logic/networkValidation';
+import { DifficultyLevel } from '../logic/gamification';
 import { PlacedRackItem } from '../logic/rackValidation';
+import { Phase3TechnicalWiring } from './Phase3TechnicalWiring';
 
 interface Phase3NetworkWiringProps {
+  difficulty?: DifficultyLevel;
   placedRackItems: PlacedRackItem[];
   rackValidated: boolean;
   cables: CableConnection[];
+  technicalCables?: TechnicalCableConnection[];
   phase3Completed: boolean;
   onStepSuccess: (nextCables: CableConnection[]) => void;
+  onTechnicalStepSuccess?: (nextCables: TechnicalCableConnection[]) => void;
   onStepMistake: () => void;
   onClearCables: () => void;
   onOpenVictory: () => void;
@@ -128,6 +134,52 @@ function coordsEqual(a: Map<string, Point>, b: Map<string, Point>): boolean {
 }
 
 export const Phase3NetworkWiring: React.FC<Phase3NetworkWiringProps> = ({
+  difficulty = 'principiante',
+  placedRackItems,
+  rackValidated,
+  cables,
+  technicalCables = [],
+  phase3Completed,
+  onStepSuccess,
+  onTechnicalStepSuccess,
+  onStepMistake,
+  onClearCables,
+  onOpenVictory,
+}) => {
+  if (difficulty === 'tecnico') {
+    return (
+      <Phase3TechnicalWiring
+        rackValidated={rackValidated}
+        cables={technicalCables}
+        phase3Completed={phase3Completed}
+        onStepSuccess={(next) => onTechnicalStepSuccess?.(next)}
+        onStepMistake={onStepMistake}
+        onClearCables={onClearCables}
+        onOpenVictory={onOpenVictory}
+      />
+    );
+  }
+
+  return (
+    <PrincipiantePhase3NetworkWiring
+      placedRackItems={placedRackItems}
+      rackValidated={rackValidated}
+      cables={cables}
+      phase3Completed={phase3Completed}
+      onStepSuccess={onStepSuccess}
+      onStepMistake={onStepMistake}
+      onClearCables={onClearCables}
+      onOpenVictory={onOpenVictory}
+    />
+  );
+};
+
+const PrincipiantePhase3NetworkWiring: React.FC<
+  Omit<
+    Phase3NetworkWiringProps,
+    'difficulty' | 'technicalCables' | 'onTechnicalStepSuccess'
+  >
+> = ({
   placedRackItems,
   rackValidated,
   cables,

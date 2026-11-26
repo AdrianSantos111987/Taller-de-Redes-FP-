@@ -11,7 +11,9 @@ import {
   X,
 } from 'lucide-react';
 import {
+  DifficultyLevel,
   formatSecondsMMSS,
+  getDifficultyLabel,
   LeaderboardEntry,
   TotalScoreSummary,
 } from '../logic/gamification';
@@ -19,13 +21,18 @@ import {
 interface VictoryModalProps {
   isOpen: boolean;
   nick: string;
+  difficulty?: DifficultyLevel;
   scoreSummary: TotalScoreSummary;
   leaderboard: LeaderboardEntry[];
   onClose: () => void;
   onPlayAgain: () => void;
 }
 
-function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): void {
+function downloadCertificatePng(
+  nick: string,
+  difficulty: DifficultyLevel,
+  scoreSummary: TotalScoreSummary
+): void {
   const canvas = document.createElement('canvas');
   canvas.width = 1200;
   canvas.height = 720;
@@ -37,7 +44,7 @@ function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): 
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Outer technical border
-  ctx.strokeStyle = '#0284C7';
+  ctx.strokeStyle = difficulty === 'tecnico' ? '#4F46E5' : '#0284C7';
   ctx.lineWidth = 8;
   ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
 
@@ -45,10 +52,19 @@ function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): 
   ctx.lineWidth = 2;
   ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
 
+  const levelBadgeText =
+    difficulty === 'tecnico'
+      ? 'NIVEL TÉCNICO SUPERADO'
+      : 'NIVEL PRINCIPIANTE SUPERADO';
+
   // Header
-  ctx.fillStyle = '#0369A1';
+  ctx.fillStyle = difficulty === 'tecnico' ? '#4338CA' : '#0369A1';
   ctx.font = 'bold 20px monospace';
-  ctx.fillText('TALLER DE REDES FP · ARMARIO RACK 19" Y CABLEADO LOCAL', 72, 95);
+  ctx.fillText(
+    `TALLER DE REDES FP · RACK 19" · ${levelBadgeText}`,
+    72,
+    95
+  );
 
   ctx.fillStyle = '#0F172A';
   ctx.font = 'bold 46px sans-serif';
@@ -57,7 +73,7 @@ function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): 
   ctx.fillStyle = '#475569';
   ctx.font = '22px sans-serif';
   ctx.fillText(
-    'Comprobante de práctica completada para entrega de clase',
+    `Comprobante de práctica (${getDifficultyLabel(difficulty)}) para entrega de clase`,
     72,
     200
   );
@@ -148,6 +164,7 @@ function downloadCertificatePng(nick: string, scoreSummary: TotalScoreSummary): 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
   isOpen,
   nick,
+  difficulty = 'principiante',
   scoreSummary,
   leaderboard,
   onClose,
@@ -160,6 +177,11 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   const completedPhasesCount = scoreSummary.phases.filter(
     (p) => p.completed
   ).length;
+  const difficultyLabel = getDifficultyLabel(difficulty);
+  const certificateBadge =
+    difficulty === 'tecnico'
+      ? 'Nivel Técnico superado'
+      : 'Nivel Principiante superado';
 
   const totalTimeUsed = scoreSummary.phases.reduce(
     (sum, p) => sum + (p.timeUsedSeconds ?? 0),
@@ -199,19 +221,31 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               />
             </div>
             <div>
-              <p className="text-xs font-mono font-semibold text-emerald-700">
-                RESUMEN DE PRÁCTICA · {completedPhasesCount}/3 FASES COMPLETADAS
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-mono font-semibold text-emerald-700">
+                  RESUMEN DE PRÁCTICA · {completedPhasesCount}/3 FASES COMPLETADAS
+                </p>
+                <span
+                  data-testid="victory-difficulty-badge"
+                  className={`px-2 py-0.5 rounded border text-[11px] font-bold ${
+                    difficulty === 'tecnico'
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
+                      : 'bg-sky-50 border-sky-300 text-sky-900'
+                  }`}
+                >
+                  {certificateBadge}
+                </span>
+              </div>
               <h2
                 id="victory-modal-title"
-                className="text-xl font-bold text-slate-900"
+                className="text-xl font-bold text-slate-900 mt-0.5"
               >
                 ¡Enhorabuena, {nick || 'Técnico/a'}!
               </h2>
               <p className="text-sm text-slate-600 mt-0.5">
                 {completedPhasesCount === 3
-                  ? 'Has montado el armario rack 19" y completado las 4 conexiones de red del aula.'
-                  : 'Has completado el cableado de la Fase 3. Aquí tienes tu resumen de puntuación actual.'}
+                  ? `Has completado el ${difficultyLabel} montando el armario rack 19" y cableando la red.`
+                  : `Has completado el cableado de la Fase 3 (${difficultyLabel}). Aquí tienes tu resumen actual.`}
               </p>
             </div>
           </div>
@@ -347,7 +381,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                       {entry.nick}
                     </span>
                     <span className="text-slate-500 hidden sm:inline">
-                      · {entry.rankTitle}
+                      · {entry.rankTitle} ·{' '}
+                      {getDifficultyLabel(entry.difficulty ?? 'principiante')}
                     </span>
                   </div>
                   <div className="font-mono font-bold text-sky-800 shrink-0">
@@ -373,7 +408,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           <button
             type="button"
             onClick={() => {
-              downloadCertificatePng(nick, scoreSummary);
+              downloadCertificatePng(nick, difficulty, scoreSummary);
               setDownloadedNotice(true);
             }}
             data-testid="victory-capture-btn"

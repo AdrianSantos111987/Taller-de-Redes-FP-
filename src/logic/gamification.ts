@@ -1,10 +1,30 @@
 import { PhaseId } from '../components/HeaderBar';
 
+export type DifficultyLevel = 'principiante' | 'tecnico';
+
+export function getDifficultyLabel(level: DifficultyLevel): string {
+  return level === 'tecnico' ? 'Nivel Técnico' : 'Nivel Principiante';
+}
+
 export const PHASE_TIME_LIMITS: Record<PhaseId, number> = {
   1: 120, // 2:00
   2: 180, // 3:00
   3: 300, // 5:00
 };
+
+export const TECHNICAL_PHASE_TIME_LIMITS: Record<PhaseId, number> = {
+  1: 180, // 3:00
+  2: 240, // 4:00
+  3: 360, // 6:00
+};
+
+export function getPhaseTimeLimits(
+  difficulty: DifficultyLevel = 'principiante'
+): Record<PhaseId, number> {
+  return difficulty === 'tecnico'
+    ? TECHNICAL_PHASE_TIME_LIMITS
+    : PHASE_TIME_LIMITS;
+}
 
 export interface PhaseTimingMap {
   1: number;
@@ -46,6 +66,7 @@ export interface TotalScoreSummary {
 export interface LeaderboardEntry {
   id: string;
   nick: string;
+  difficulty?: DifficultyLevel;
   score: number;
   rankTitle: string;
   totalTimeUsedSeconds: number;
@@ -68,13 +89,26 @@ export function calculatePhase1Score(params: {
   totalComponents: number;
   remainingSeconds: number;
   completed: boolean;
+  difficulty?: DifficultyLevel;
+  firstTryCount?: number;
 }): PhaseScoreDetail {
-  const limit = PHASE_TIME_LIMITS[1];
+  const difficulty = params.difficulty ?? 'principiante';
+  const limit = getPhaseTimeLimits(difficulty)[1];
   const clampedExplored = Math.max(
     0,
     Math.min(params.exploredCount, params.totalComponents)
   );
-  const cardPoints = clampedExplored * 50;
+
+  let cardPoints = clampedExplored * 50;
+  if (difficulty === 'tecnico' && params.firstTryCount !== undefined) {
+    const firstTries = Math.max(
+      0,
+      Math.min(params.firstTryCount, clampedExplored)
+    );
+    const retrySolves = Math.max(0, clampedExplored - firstTries);
+    cardPoints = firstTries * 50 + retrySolves * 25;
+  }
+
   const completionPoints = params.completed ? 100 : 0;
   const accuracyPoints = cardPoints + completionPoints;
   const timeBonusPoints = params.completed
@@ -102,17 +136,24 @@ export function calculatePhase2Score(params: {
   completed: boolean;
   failedChecks: number;
   remainingSeconds: number;
+  difficulty?: DifficultyLevel;
 }): PhaseScoreDetail {
-  const limit = PHASE_TIME_LIMITS[2];
+  const difficulty = params.difficulty ?? 'principiante';
+  const limit = getPhaseTimeLimits(difficulty)[2];
   const clampedPlaced = Math.max(
     0,
     Math.min(params.placedCount, params.totalEquipment)
   );
-  const placementPoints = clampedPlaced * 25;
+  const perItemPts = difficulty === 'tecnico' ? 20 : 25;
+  const placementPoints = clampedPlaced * perItemPts;
   const precisionBonus = params.completed
     ? Math.max(0, 150 - Math.max(0, params.failedChecks) * 25)
     : 0;
-  const completionPoints = params.completed ? 200 : 0;
+  const completionPoints = params.completed
+    ? difficulty === 'tecnico'
+      ? 250
+      : 200
+    : 0;
   const accuracyPoints = placementPoints + completionPoints + precisionBonus;
   const timeBonusPoints = params.completed
     ? Math.max(0, Math.floor(params.remainingSeconds)) * 3
@@ -139,14 +180,17 @@ export function calculatePhase3Score(params: {
   completed: boolean;
   failedAttempts: number;
   remainingSeconds: number;
+  difficulty?: DifficultyLevel;
 }): PhaseScoreDetail {
-  const limit = PHASE_TIME_LIMITS[3];
+  const difficulty = params.difficulty ?? 'principiante';
+  const limit = getPhaseTimeLimits(difficulty)[3];
   const clampedCables = Math.max(
     0,
     Math.min(params.cableCount, params.expectedCables)
   );
 
-  const cablePoints = clampedCables * 100;
+  const perCablePts = difficulty === 'tecnico' ? 60 : 100;
+  const cablePoints = clampedCables * perCablePts;
   const completionPoints = params.completed ? 250 : 0;
   const precisionBonus = params.completed
     ? Math.max(0, 150 - Math.max(0, params.failedAttempts) * 20)

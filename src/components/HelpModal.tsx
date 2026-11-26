@@ -1,10 +1,12 @@
 import React from 'react';
 import { X, Lightbulb } from 'lucide-react';
 import { PhaseId } from './HeaderBar';
+import { DifficultyLevel } from '../logic/gamification';
 
 interface HelpModalProps {
   isOpen: boolean;
   activePhase: PhaseId;
+  difficulty?: DifficultyLevel;
   onClose: () => void;
 }
 
@@ -40,14 +42,50 @@ const HINTS_BY_PHASE: Record<
   },
 };
 
+const TECHNICAL_HINTS_BY_PHASE: Record<
+  PhaseId,
+  { title: string; steps: string[] }
+> = {
+  1: {
+    title: 'Pistas Nivel Técnico · Fase 1 (Identificación)',
+    steps: [
+      'Haz clic en cada uno de los 7 equipos para abrir su reto de identificación con 3 opciones.',
+      'Si aciertas a la primera sumas los puntos completos (50 pts); si fallas, lee la pista y vuelve a intentarlo.',
+      'Al validar cada equipo desbloquearás su ficha técnica completa a la derecha.',
+    ],
+  },
+  2: {
+    title: 'Pistas Nivel Técnico · Fase 2 (Rack 12U completo)',
+    steps: [
+      'El SAI (2U) va siempre abajo del todo (U1–U2) por su gran peso y baterías, evitando que el armario vuelque.',
+      'El Router de operadora se coloca en la zona superior (U10–U12) para recibir cómodamente la acometida externa.',
+      'Los 3 Patch Panels y 3 Switches se alternan pegados entre sí (ej. U4–U5, U6–U7, U8–U9) para que los latiguillos de conexión entre ambos sean cortos y queden ordenados.',
+      'Coloca la Regleta PDU en U3 (accesible) y completa el resto de guías con el Pasahilos y la Bandeja hasta llenar las 12U.',
+    ],
+  },
+  3: {
+    title: 'Pistas Nivel Técnico · Fase 3 (8 pasos guiados)',
+    steps: [
+      'Pasos 1 y 2 (Cable Negro - 230V): Alimenta primero el Router y después el bloque de Switches desde el SAI.',
+      'Pasos 3 y 4 (Cable Azul - RJ45): Conecta Internet al puerto WAN del Router y su salida LAN al Switch 1 (Principal).',
+      'Paso 5 (Cable Azul - RJ45): Enlaza Switch 1 con Switch 2 y también Switch 1 con Switch 3.',
+      'Pasos 6, 7 y 8 (Cable Azul - RJ45): Conecta Switch 1 → Aula 1, Switch 2 → Aula 2 y Switch 3 → Sala de Profesores.',
+    ],
+  },
+};
+
 export const HelpModal: React.FC<HelpModalProps> = ({
   isOpen,
   activePhase,
+  difficulty = 'principiante',
   onClose,
 }) => {
   if (!isOpen) return null;
 
-  const content = HINTS_BY_PHASE[activePhase];
+  const content =
+    difficulty === 'tecnico'
+      ? TECHNICAL_HINTS_BY_PHASE[activePhase]
+      : HINTS_BY_PHASE[activePhase];
 
   return (
     <div

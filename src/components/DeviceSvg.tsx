@@ -2,10 +2,11 @@ import React from 'react';
 import { ComponentId } from '../data/componentsData';
 
 interface DeviceSvgProps {
-  type: ComponentId | 'bandeja';
+  type: ComponentId | 'bandeja' | 'pasahilos';
   className?: string;
   activeLeds?: boolean[];
   hubMode?: boolean;
+  badgeLabel?: string;
 }
 
 export const DeviceSvg: React.FC<DeviceSvgProps> = ({
@@ -13,6 +14,7 @@ export const DeviceSvg: React.FC<DeviceSvgProps> = ({
   className = 'w-full h-24',
   activeLeds = [],
   hubMode = false,
+  badgeLabel,
 }) => {
   switch (type) {
     case 'sai':
@@ -110,6 +112,37 @@ export const DeviceSvg: React.FC<DeviceSvgProps> = ({
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
             <rect key={i} x={40 + i * 24} y="16" width="14" height="8" rx="2" fill="#CBD5E1" />
           ))}
+        </svg>
+      );
+
+    case 'pasahilos':
+      return (
+        <svg
+          viewBox="0 0 320 52"
+          className={className}
+          role="img"
+          aria-label="Ilustración técnica de Pasahilos 1U"
+        >
+          <rect x="4" y="6" width="12" height="40" rx="2" fill="#64748B" />
+          <rect x="304" y="6" width="12" height="40" rx="2" fill="#64748B" />
+          <circle cx="10" cy="14" r="2.5" fill="#F1F5F9" />
+          <circle cx="10" cy="38" r="2.5" fill="#F1F5F9" />
+          <circle cx="310" cy="14" r="2.5" fill="#F1F5F9" />
+          <circle cx="310" cy="38" r="2.5" fill="#F1F5F9" />
+          <rect x="16" y="8" width="288" height="36" rx="3" fill="#334155" stroke="#475569" strokeWidth="1.5" />
+          <text x="26" y="29" fill="#CBD5E1" fontSize="7.5" fontFamily="monospace" fontWeight="700">
+            PASAHILOS
+          </text>
+          {/* 5 metal D-rings for cable management */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const x = 92 + i * 42;
+            return (
+              <g key={i} transform={`translate(${x}, 14)`}>
+                <rect x="0" y="0" width="26" height="24" rx="5" fill="#0F172A" stroke="#94A3B8" strokeWidth="2" />
+                <rect x="6" y="6" width="14" height="12" rx="2" fill="#1E293B" />
+              </g>
+            );
+          })}
         </svg>
       );
 

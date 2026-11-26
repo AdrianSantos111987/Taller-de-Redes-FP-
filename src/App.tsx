@@ -4,29 +4,38 @@ import {
   EDUCATIONAL_COMPONENTS,
   RACK_INVENTORY,
   RackEquipmentId,
+  TECHNICAL_RACK_INVENTORY,
+  TechnicalRackEquipmentId,
 } from './data/componentsData';
 import {
   PlacedRackItem,
   placeRackItem,
+  placeTechnicalRackItem,
   RackValidationSummary,
   removeRackItem,
+  removeTechnicalRackItem,
+  TechnicalPlacedRackItem,
   validateRackAssembly,
+  validateTechnicalRackAssembly,
 } from './logic/rackValidation';
 import {
   CableConnection,
+  TechnicalCableConnection,
   TOTAL_EXPECTED_CABLES,
+  TOTAL_TECHNICAL_EXPECTED_CABLES,
 } from './logic/networkValidation';
 import {
   calculatePhase1Score,
   calculatePhase2Score,
   calculatePhase3Score,
   computeTotalGameScore,
+  DifficultyLevel,
+  getPhaseTimeLimits,
   LeaderboardEntry,
-  PHASE_TIME_LIMITS,
   PhaseTimingMap,
   sanitizeNick,
 } from './logic/gamification';
-import { TUTORIAL_STEPS_BY_PHASE } from './logic/tutorialSteps';
+import { getTutorialSteps } from './logic/tutorialSteps';
 import { HeaderBar, PhaseId } from './components/HeaderBar';
 import { GameHudBar } from './components/GameHudBar';
 import { Phase1Explore } from './components/Phase1Explore';
@@ -77,6 +86,18 @@ function loadInitialNick(): string {
   return '';
 }
 
+function loadInitialDifficulty(): DifficultyLevel {
+  try {
+    if (typeof window !== 'undefined') {
+      const level = new URLSearchParams(window.location.search).get('level');
+      if (level === 'tecnico') return 'tecnico';
+    }
+  } catch {
+    // Ignore URL errors
+  }
+  return 'principiante';
+}
+
 function loadLeaderboard(): LeaderboardEntry[] {
   try {
     const raw = window.localStorage.getItem(LEADERBOARD_STORAGE_KEY);
@@ -89,6 +110,9 @@ function loadLeaderboard(): LeaderboardEntry[] {
 }
 
 export default function App() {
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>(
+    loadInitialDifficulty
+  );
   const [activePhase, setActivePhase] = useState<PhaseId>(1);
   const [helpOpen, setHelpOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -98,9 +122,9 @@ export default function App() {
   const [nickModalOpen, setNickModalOpen] = useState<boolean>(
     () => loadInitialNick() === ''
   );
-  const [phaseTimers, setPhaseTimers] = useState<PhaseTimingMap>(() => ({
-    ...PHASE_TIME_LIMITS,
-  }));
+  const [phaseTimers, setPhaseTimers] = useState<PhaseTimingMap>(() =>
+    getPhaseTimeLimits(loadInitialDifficulty())
+  );
   const [phase2FailedChecks, setPhase2FailedChecks] = useState(0);
   const [phase3FailedAttempts, setPhase3FailedAttempts] = useState(0);
   const [victoryModalOpen, setVictoryModalOpen] = useState(false);
@@ -119,18 +143,31 @@ export default function App() {
 
   // Phase 1 state
   const [selectedComponentId, setSelectedComponentId] =
-    useState<ComponentId>('sai');
-  const [exploredIds, setExploredIds] = useState<ComponentId[]>(['sai']);
+    useState<ComponentId | null>(() =>
+      loadInitialDifficulty() === 'tecnico' ? null : 'sai'
+    );
+  const [exploredIds, setExploredIds] = useState<ComponentId[]>(() =>
+    loadInitialDifficulty() === 'tecnico' ? [] : ['sai']
+  );
+  const [p1FirstTryIds, setP1FirstTryIds] = useState<ComponentId[]>([]);
 
-  // Phase 2 state
+  // Phase 2 state (Principiante & Técnico)
   const [placedRackItems, setPlacedRackItems] = useState<PlacedRackItem[]>([]);
+  const [techPlacedRackItems, setTechPlacedRackItems] = useState<
+    TechnicalPlacedRackItem[]
+  >([]);
   const [rackValidation, setRackValidation] =
     useState<RackValidationSummary | null>(null);
   const [phase2Completed, setPhase2Completed] = useState(false);
 
-  // Phase 3 state (4-step guided connections)
+  // Phase 3 state (4-step Principiante & 8-step Técnico)
   const [cables, setCables] = useState<CableConnection[]>([]);
-  const phase3Completed = cables.length >= TOTAL_EXPECTED_CABLES;
+  const [techCables, setTechCables] = useState<TechnicalCableConnection[]>([]);
+
+  const isTechnical = difficulty === 'tecnico';
+  const phase3Completed = isTechnical
+    ? techCables.length >= TOTAL_TECHNICAL_EXPECTED_CABLES
+    : cables.length >= TOTAL_EXPECTED_CABLES;
 
   const phase1Completed = exploredIds.length >= EDUCATIONAL_COMPONENTS.length;
   const allPhasesCompleted =
@@ -143,29 +180,44 @@ export default function App() {
       totalComponents: EDUCATIONAL_COMPONENTS.length,
       remainingSeconds: phaseTimers[1],
       completed: phase1Completed,
+      difficulty,
+      firstTryCount: p1FirstTryIds.length,
     });
     const p2 = calculatePhase2Score({
-      placedCount: placedRackItems.length,
-      totalEquipment: RACK_INVENTORY.length,
+      placedCount: isTechnical
+        ? techPlacedRackItems.length
+        : placedRackItems.length,
+      totalEquipment: isTechnical
+        ? TECHNICAL_RACK_INVENTORY.length
+        : RACK_INVENTORY.length,
       completed: phase2Completed,
       failedChecks: phase2FailedChecks,
       remainingSeconds: phaseTimers[2],
+      difficulty,
     });
     const p3 = calculatePhase3Score({
-      cableCount: cables.length,
-      expectedCables: TOTAL_EXPECTED_CABLES,
+      cableCount: isTechnical ? techCables.length : cables.length,
+      expectedCables: isTechnical
+        ? TOTAL_TECHNICAL_EXPECTED_CABLES
+        : TOTAL_EXPECTED_CABLES,
       completed: phase3Completed,
       failedAttempts: phase3FailedAttempts,
       remainingSeconds: phaseTimers[3],
+      difficulty,
     });
     return computeTotalGameScore(p1, p2, p3);
   }, [
+    difficulty,
+    isTechnical,
     exploredIds.length,
+    p1FirstTryIds.length,
     phase1Completed,
     placedRackItems.length,
+    techPlacedRackItems.length,
     phase2Completed,
     phase2FailedChecks,
     cables.length,
+    techCables.length,
     phase3Completed,
     phase3FailedAttempts,
     phaseTimers,
@@ -224,7 +276,7 @@ export default function App() {
     return () => window.clearInterval(interval);
   }, [activePhase, isTimerPaused]);
 
-  // Automatically congratulate and show final summary when Phase 3 completes (or all 3 phases complete)
+  // Automatically congratulate and show final summary when all 3 phases complete
   useEffect(() => {
     if (allPhasesCompleted && !victoryRecordedForRun) {
       setVictoryRecordedForRun(true);
@@ -240,6 +292,7 @@ export default function App() {
       const newEntry: LeaderboardEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         nick: playerNick || 'Invitado/a',
+        difficulty,
         score: scoreSummary.totalScore,
         rankTitle: scoreSummary.rank.title,
         totalTimeUsedSeconds,
@@ -255,7 +308,13 @@ export default function App() {
           .slice(0, 10)
       );
     }
-  }, [allPhasesCompleted, victoryRecordedForRun, scoreSummary, playerNick]);
+  }, [
+    allPhasesCompleted,
+    victoryRecordedForRun,
+    scoreSummary,
+    playerNick,
+    difficulty,
+  ]);
 
   const markTutorialSeen = (phase: PhaseId) => {
     setSeenTutorials((prev) =>
@@ -263,10 +322,57 @@ export default function App() {
     );
   };
 
-  const handleConfirmNick = (nick: string) => {
+  const resetProgressForLevel = (nextDifficulty: DifficultyLevel) => {
+    const isAutostart =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('autostart') === '1';
+    const freshSeen = isAutostart
+      ? { 1: true, 2: true, 3: true }
+      : { 1: false, 2: false, 3: false };
+    setSeenTutorials(freshSeen);
+    setActivePhase(1);
+    setTutorialStepIndex(0);
+    setSelectedComponentId(nextDifficulty === 'tecnico' ? null : 'sai');
+    setExploredIds(nextDifficulty === 'tecnico' ? [] : ['sai']);
+    setP1FirstTryIds([]);
+    setPlacedRackItems([]);
+    setTechPlacedRackItems([]);
+    setRackValidation(null);
+    setPhase2Completed(false);
+    setCables([]);
+    setTechCables([]);
+    setPhaseTimers(getPhaseTimeLimits(nextDifficulty));
+    setPhase2FailedChecks(0);
+    setPhase3FailedAttempts(0);
+    setVictoryModalOpen(false);
+    setVictoryRecordedForRun(false);
+    setHelpOpen(false);
+    setInfoOpen(false);
+    return freshSeen;
+  };
+
+  const handleConfirmNick = (nick: string, nextDifficulty: DifficultyLevel) => {
     const isInitialSet = playerNick === '';
+    const difficultyChanged = nextDifficulty !== difficulty;
     setPlayerNick(nick);
+    setDifficulty(nextDifficulty);
     setNickModalOpen(false);
+
+    if (difficultyChanged) {
+      const freshSeen = resetProgressForLevel(nextDifficulty);
+      if (!freshSeen[1]) {
+        setTutorialOpen(true);
+      } else {
+        setTutorialOpen(false);
+      }
+      return;
+    }
+
+    if (isInitialSet && nextDifficulty === 'tecnico') {
+      // Ensure initial Técnico state has empty exploredIds & null selected if page loaded with principante default
+      setSelectedComponentId((prev) => (exploredIds.length === 0 ? prev : null));
+    }
+
     if (isInitialSet && !seenTutorials[activePhase]) {
       setTutorialStepIndex(0);
       setTutorialOpen(true);
@@ -301,7 +407,20 @@ export default function App() {
 
   const handleSelectComponent = (id: ComponentId) => {
     setSelectedComponentId(id);
+    if (!isTechnical) {
+      setExploredIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    }
+  };
+
+  const handleValidateTechnicalComponent = (
+    id: ComponentId,
+    isFirstTry: boolean
+  ) => {
+    setSelectedComponentId(id);
     setExploredIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    if (isFirstTry) {
+      setP1FirstTryIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    }
   };
 
   const handlePlaceRackItem = (
@@ -315,14 +434,33 @@ export default function App() {
     return undefined;
   };
 
+  const handlePlaceTechnicalRackItem = (
+    itemId: TechnicalRackEquipmentId,
+    bottomU: number
+  ): string | undefined => {
+    const res = placeTechnicalRackItem(techPlacedRackItems, itemId, bottomU);
+    if (res.error) return res.error;
+    setTechPlacedRackItems(res.placedItems);
+    setRackValidation(null);
+    return undefined;
+  };
+
   const handleRemoveRackItem = (itemId: RackEquipmentId) => {
     setPlacedRackItems((prev) => removeRackItem(prev, itemId));
     setRackValidation(null);
     setPhase2Completed(false);
   };
 
+  const handleRemoveTechnicalRackItem = (itemId: TechnicalRackEquipmentId) => {
+    setTechPlacedRackItems((prev) => removeTechnicalRackItem(prev, itemId));
+    setRackValidation(null);
+    setPhase2Completed(false);
+  };
+
   const handleValidateRack = () => {
-    const summary = validateRackAssembly(placedRackItems);
+    const summary = isTechnical
+      ? validateTechnicalRackAssembly(techPlacedRackItems)
+      : validateRackAssembly(placedRackItems);
     setRackValidation(summary);
     if (summary.isValid) {
       setPhase2Completed(true);
@@ -335,39 +473,26 @@ export default function App() {
   const handleStepSuccess = (nextCables: CableConnection[]) => {
     setCables(nextCables);
     if (nextCables.length >= TOTAL_EXPECTED_CABLES) {
-      // Open final summary automatically when completing Phase 3
+      setVictoryModalOpen(true);
+    }
+  };
+
+  const handleTechnicalStepSuccess = (
+    nextCables: TechnicalCableConnection[]
+  ) => {
+    setTechCables(nextCables);
+    if (nextCables.length >= TOTAL_TECHNICAL_EXPECTED_CABLES) {
       setVictoryModalOpen(true);
     }
   };
 
   const handleResetAll = () => {
-    const isAutostart =
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('autostart') === '1';
-    const freshSeen = isAutostart
-      ? { 1: true, 2: true, 3: true }
-      : { 1: false, 2: false, 3: false };
-    setSeenTutorials(freshSeen);
-    setActivePhase(1);
-    setTutorialStepIndex(0);
+    resetProgressForLevel(difficulty);
     setTutorialOpen(false);
-    setSelectedComponentId('sai');
-    setExploredIds(['sai']);
-    setPlacedRackItems([]);
-    setRackValidation(null);
-    setPhase2Completed(false);
-    setCables([]);
-    setPhaseTimers({ ...PHASE_TIME_LIMITS });
-    setPhase2FailedChecks(0);
-    setPhase3FailedAttempts(0);
-    setVictoryModalOpen(false);
-    setVictoryRecordedForRun(false);
-    setHelpOpen(false);
-    setInfoOpen(false);
     setNickModalOpen(true);
   };
 
-  const currentTutorialSteps = TUTORIAL_STEPS_BY_PHASE[activePhase];
+  const currentTutorialSteps = getTutorialSteps(activePhase, difficulty);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -396,6 +521,7 @@ export default function App() {
 
         <GameHudBar
           nick={playerNick}
+          difficulty={difficulty}
           activePhase={activePhase}
           remainingSeconds={phaseTimers[activePhase]}
           isTimerPaused={isTimerPaused}
@@ -414,19 +540,26 @@ export default function App() {
       <main className="flex-1 pb-10">
         {activePhase === 1 && (
           <Phase1Explore
+            difficulty={difficulty}
             selectedId={selectedComponentId}
             exploredIds={exploredIds}
+            firstTryIds={p1FirstTryIds}
             onSelectComponent={handleSelectComponent}
+            onValidateComponent={handleValidateTechnicalComponent}
             onGoToPhase2={() => handlePhaseChange(2)}
           />
         )}
 
         {activePhase === 2 && (
           <Phase2RackAssembly
+            difficulty={difficulty}
             placedItems={placedRackItems}
+            technicalPlacedItems={techPlacedRackItems}
             validationResult={rackValidation}
             onPlaceItem={handlePlaceRackItem}
+            onPlaceTechnicalItem={handlePlaceTechnicalRackItem}
             onRemoveItem={handleRemoveRackItem}
+            onRemoveTechnicalItem={handleRemoveTechnicalRackItem}
             onValidate={handleValidateRack}
             onGoToPhase3={() => handlePhaseChange(3)}
           />
@@ -434,13 +567,19 @@ export default function App() {
 
         {activePhase === 3 && (
           <Phase3NetworkWiring
+            difficulty={difficulty}
             placedRackItems={placedRackItems}
             rackValidated={phase2Completed}
             cables={cables}
+            technicalCables={techCables}
             phase3Completed={phase3Completed}
             onStepSuccess={handleStepSuccess}
+            onTechnicalStepSuccess={handleTechnicalStepSuccess}
             onStepMistake={() => setPhase3FailedAttempts((c) => c + 1)}
-            onClearCables={() => setCables([])}
+            onClearCables={() => {
+              if (isTechnical) setTechCables([]);
+              else setCables([]);
+            }}
             onOpenVictory={() => setVictoryModalOpen(true)}
           />
         )}
@@ -449,6 +588,7 @@ export default function App() {
       <NickEntryModal
         isOpen={nickModalOpen}
         currentNick={playerNick}
+        currentDifficulty={difficulty}
         canCancel={playerNick !== ''}
         onConfirmNick={handleConfirmNick}
         onCancel={() => setNickModalOpen(false)}
@@ -457,6 +597,7 @@ export default function App() {
       <VictoryModal
         isOpen={victoryModalOpen}
         nick={playerNick}
+        difficulty={difficulty}
         scoreSummary={scoreSummary}
         leaderboard={leaderboard}
         onClose={() => setVictoryModalOpen(false)}
@@ -466,6 +607,7 @@ export default function App() {
       <HelpModal
         isOpen={helpOpen}
         activePhase={activePhase}
+        difficulty={difficulty}
         onClose={() => setHelpOpen(false)}
       />
 

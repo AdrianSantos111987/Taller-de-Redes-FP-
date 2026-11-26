@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   computeTooltipPosition,
+  getTutorialSteps,
   TUTORIAL_STEPS_BY_PHASE,
 } from './tutorialSteps';
 
@@ -12,6 +13,13 @@ test('all 3 phases define guided tutorial steps with targets and solution guidan
 
   for (const phase of [1, 2, 3] as const) {
     for (const step of TUTORIAL_STEPS_BY_PHASE[phase]) {
+      assert.ok(step.title.length > 0);
+      assert.ok(step.body.length > 15);
+      assert.ok(step.targetTourId.length > 0);
+    }
+    const techSteps = getTutorialSteps(phase, 'tecnico');
+    assert.ok(techSteps.length >= 3);
+    for (const step of techSteps) {
       assert.ok(step.title.length > 0);
       assert.ok(step.body.length > 15);
       assert.ok(step.targetTourId.length > 0);

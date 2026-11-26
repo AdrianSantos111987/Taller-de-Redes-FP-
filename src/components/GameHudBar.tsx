@@ -1,10 +1,16 @@
 import React from 'react';
 import { Award, CheckCircle2, Clock, Pause, Trophy, User } from 'lucide-react';
 import { PhaseId } from './HeaderBar';
-import { formatSecondsMMSS, TotalScoreSummary } from '../logic/gamification';
+import {
+  DifficultyLevel,
+  formatSecondsMMSS,
+  getDifficultyLabel,
+  TotalScoreSummary,
+} from '../logic/gamification';
 
 interface GameHudBarProps {
   nick: string;
+  difficulty: DifficultyLevel;
   activePhase: PhaseId;
   remainingSeconds: number;
   isTimerPaused: boolean;
@@ -16,6 +22,7 @@ interface GameHudBarProps {
 
 export const GameHudBar: React.FC<GameHudBarProps> = ({
   nick,
+  difficulty,
   activePhase,
   remainingSeconds,
   isTimerPaused,
@@ -28,6 +35,7 @@ export const GameHudBar: React.FC<GameHudBarProps> = ({
   const isPhaseDone = activePhaseScore.completed;
   const isLowTime = !isPhaseDone && remainingSeconds > 0 && remainingSeconds <= 30;
   const isTimeUp = !isPhaseDone && remainingSeconds <= 0;
+  const difficultyLabel = getDifficultyLabel(difficulty);
 
   return (
     <div
@@ -36,13 +44,13 @@ export const GameHudBar: React.FC<GameHudBarProps> = ({
       data-testid="game-hud-bar"
     >
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Player Nick + Phase Timer */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Left: Player Nick + Difficulty Level + Phase Timer */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={onEditNick}
             data-testid="hud-nick-btn"
-            title="Cambiar nick"
+            title="Cambiar nick o nivel"
             className="px-3 py-1 bg-white hover:bg-sky-50 border border-slate-300 hover:border-sky-400 rounded-lg text-xs font-semibold text-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <User className="w-3.5 h-3.5 text-sky-700" aria-hidden="true" />
@@ -51,6 +59,17 @@ export const GameHudBar: React.FC<GameHudBarProps> = ({
               {nick || 'Sin nick'}
             </strong>
           </button>
+
+          <span
+            data-testid="hud-difficulty-badge"
+            className={`px-2.5 py-1 rounded-lg border text-xs font-semibold whitespace-nowrap ${
+              difficulty === 'tecnico'
+                ? 'bg-indigo-50 border-indigo-300 text-indigo-900'
+                : 'bg-sky-50 border-sky-300 text-sky-900'
+            }`}
+          >
+            {difficultyLabel}
+          </span>
 
           <div
             data-testid="hud-phase-timer"

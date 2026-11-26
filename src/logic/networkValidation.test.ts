@@ -82,3 +82,126 @@ test('completes all 4 guided steps in either port click order', () => {
   assert.equal(cables.length, TOTAL_EXPECTED_CABLES);
   assert.equal(getCurrentWiringStep(cables), null);
 });
+
+import {
+  attemptTechnicalStepConnection,
+  getCurrentTechnicalWiringStep,
+  TechnicalCableConnection,
+  TECHNICAL_WIRING_STEPS,
+  TOTAL_TECHNICAL_EXPECTED_CABLES,
+} from './networkValidation.ts';
+
+test('Nivel Tecnico defines 8 guided steps and completes all 9 links including Step 5 pair matching', () => {
+  assert.equal(TECHNICAL_WIRING_STEPS.length, 8);
+  let cables: TechnicalCableConnection[] = [];
+
+  // Step 1: SAI -> Router 230V
+  let r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'power',
+    fromPortId: 'tech-sai-router',
+    toPortId: 'tech-router-pwr',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 2);
+
+  // Step 2: SAI -> Switches 230V
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'power',
+    fromPortId: 'tech-sai-switches',
+    toPortId: 'tech-switches-pwr',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 3);
+
+  // Step 3: Internet -> Router WAN
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-internet-wan',
+    toPortId: 'tech-router-wan',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 4);
+
+  // Step 4: Router LAN -> Switch 1 Uplink
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-router-lan',
+    toPortId: 'tech-sw1-uplink',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 5);
+
+  // Step 5 mismatched pair should fail gracefully
+  const badPair = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw1-to-sw2',
+    toPortId: 'tech-sw3-uplink',
+  });
+  assert.ok(badPair.error);
+
+  // Step 5 link 1: SW1 -> SW2 (stays on Step 5!)
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw1-to-sw2',
+    toPortId: 'tech-sw2-uplink',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 5);
+
+  // Step 5 link 2: SW1 -> SW3 (advances to Step 6)
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw1-to-sw3',
+    toPortId: 'tech-sw3-uplink',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 6);
+
+  // Step 6: SW1 -> Aula 1
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw1-aula1',
+    toPortId: 'tech-pp-aula1',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 7);
+
+  // Step 7: SW2 -> Aula 2
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw2-aula2',
+    toPortId: 'tech-pp-aula2',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+  assert.equal(getCurrentTechnicalWiringStep(cables)?.stepNumber, 8);
+
+  // Step 8: SW3 -> Sala de Profesores
+  r = attemptTechnicalStepConnection({
+    cables,
+    selectedCable: 'ethernet',
+    fromPortId: 'tech-sw3-prof',
+    toPortId: 'tech-pp-prof',
+  });
+  assert.equal(r.error, undefined);
+  cables = r.cables;
+
+  assert.equal(cables.length, TOTAL_TECHNICAL_EXPECTED_CABLES);
+  assert.equal(getCurrentTechnicalWiringStep(cables), null);
+});
